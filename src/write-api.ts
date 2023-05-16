@@ -22,70 +22,74 @@ async function buildRelay(vaa: ParsedVaaWithBytes, job: RelayJob): Promise<Defau
 const handleRelayAdded = withErrorHandling(async (vaa: ParsedVaaWithBytes, job?: RelayJob) => {
   const { emitterChain, emitterAddress, sequence } = vaa.id;
   let relay = await getRelay(DefaultRelayEntity, { emitterChain, emitterAddress, sequence });
-  
+
   if (relay) {
     console.warn(`Vaa Relay was added twice: ${JSON.stringify(vaa.id)}`);
     relay.addedTimes = relay.addedTimes++;
   }
-  
+
   else {
     relay = await buildRelay(vaa, job);
   }
-  
+
   let result;
-  
+
   await tryTimes(5, async () => {
     result = await relay.save();
   });
-  
+
   return result;
 });
 
 const handleRelayCompleted = withErrorHandling(async (vaa: ParsedVaaWithBytes, job?: RelayJob) => {
-    
+
 });
 
 const handleRelayFailed = withErrorHandling(async (vaa: ParsedVaaWithBytes, job?: RelayJob) => {
-  
+
 });
 
 export function storeRelayerEngineRelays(app: RelayerApp<Context>, storageConfig: StorageConfiguration) {
-  let _storage: typeof DefaultRelayEntity;
+  let storageError: string;
+  let storageReady = false;
 
   const storagePromise = setupStorage(storageConfig).then((storage) => {
-    _storage = storage;
+    storageReady = true;
     return storage;
+  }).catch((error) => {
+    storageError = error.message;
+    console.error(storageError);
   });
 
-  const doIfReady = (fn: (...args: any[]) => any) => async (...args: any[]) => {
-    if (!_storage) await storagePromise;
+  const doWhenStorageIsReady = (fn: (...args: any[]) => any) => async (...args: any[]) => {
+    if (storageError) throw new Error(storageError);
+    if (!storageReady) await storagePromise;
     return fn(...args);
   };
-  
+
   app.on(RelayerEvents.Added, (vaa: ParsedVaaWithBytes, job?: RelayJob) => {
-    doIfReady(handleRelayAdded)(vaa, job);
+    doWhenStorageIsReady(handleRelayAdded)(vaa, job);
   });
 
-  
+
   app.on(RelayerEvents.Completed, (vaa: ParsedVaaWithBytes, job?: RelayJob) => {
-    doIfReady(handleRelayCompleted)(vaa, job);
+    doWhenStorageIsReady(handleRelayCompleted)(vaa, job);
   });
-  
+
   app.on(RelayerEvents.Failed, (vaa: ParsedVaaWithBytes, job?: RelayJob) => {
-    doIfReady(handleRelayFailed)(vaa, job);
+    doWhenStorageIsReady(handleRelayFailed)(vaa, job);
   });
-
-  // const handleRelayReceived = async (vaa: ParsedVaaWithBytes, job?: RelayJob) => {};
-  // app.on(RelayerEvents.Received, (vaa: ParsedVaaWithBytes, job?: RelayJob) => {
-  //   doIfReady(handleRelayReceived)(vaa, job);
-  // });
-  
-  // const handleRelaySkipped = async (vaa: ParsedVaaWithBytes, job?: RelayJob) => {};
-  // app.on(RelayerEvents.Skipped, (vaa: ParsedVaaWithBytes, job?: RelayJob) => {
-  //   doIfReady(handleRelaySkipped)(vaa, job);
-  // });
-
 
   // TODO: middleware should be used so that we can record the attempts
   // app.use();
+
+  // const handleRelayReceived = async (vaa: ParsedVaaWithBytes, job?: RelayJob) => {};
+  // app.on(RelayerEvents.Received, (vaa: ParsedVaaWithBytes, job?: RelayJob) => {
+  //   doWhenStorageIsReady(handleRelayReceived)(vaa, job);
+  // });
+
+  // const handleRelaySkipped = async (vaa: ParsedVaaWithBytes, job?: RelayJob) => {};
+  // app.on(RelayerEvents.Skipped, (vaa: ParsedVaaWithBytes, job?: RelayJob) => {
+  //   doWhenStorageIsReady(handleRelaySkipped)(vaa, job);
+  // });
 };

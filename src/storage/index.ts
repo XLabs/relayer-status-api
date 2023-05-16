@@ -27,7 +27,8 @@ export async function setupStorage(config: StorageConfiguration): Promise<typeof
     storageType,
     connectionUrl,
     databaseName,
-    datasourceOptions = {}
+    datasourceOptions = {},
+    abortOnConnectionError = true,
   } = config;
 
   const opts = {
@@ -44,14 +45,14 @@ export async function setupStorage(config: StorageConfiguration): Promise<typeof
   try {
     await RelaysDS.initialize();
   } catch (error: any) {
-    const errMessage = `Failed to initialize storage connection: ${error.message}`;
-    console.error(errMessage);
-    
-    if (config.abortOnConnectionError) {
+    const errorMessage = `Failed to initialize storage connection: ${error.message}`;
+
+    if (abortOnConnectionError) {
+      console.error(errorMessage);
       process.exit(1);
     }
 
-    else throw new Error(errMessage);
+    else throw new Error(errorMessage);
   }
 
   return DefaultRelayEntity;
