@@ -20,7 +20,15 @@ export enum RelayStatus {
 
 export type UserMetadata = Record<string, any>;
 
-
+/**
+ * Entity handler is used as a class that centralized mapping in and out of the database.
+ * It will be passed by the user in case they need to use a different model to store relay data.
+ * 
+ * it contains:
+ *   - the entity model to be used (needs to comply with MinimalRelayEntity interface below)
+ *   - a method to map a vaa to a storage document
+ *   - a method to map a storage document to an api response
+ */
 export interface EntityHandler {
   entity: typeof BaseEntity;
   mapToStorageDocument(vaa: ParsedVaaWithBytes, job: RelayJob): any;
@@ -62,6 +70,33 @@ export class DefaultEntityHandler implements EntityHandler {
   }
 }
 
+/**
+ * The minimal data that can be collected for a relay.
+ * Any entity to be used with the relayer-status api should at least implement
+ * this basic properties
+ */
+export interface MinimalRelayEntity extends BaseEntity {
+  // Vaa base data:
+  _id: ObjectId;
+  emitterChain: ChainId;
+  emitterAddress: string;
+  sequence: string;
+  vaa: SignedVaa;
+  fromTxHash: string;
+
+  // Vaa processing data:
+  status: RelayStatus;
+  addedTimes: number;
+  attempts: number;
+  maxAttempts: number;
+
+  receivedAt: Date;
+  completedAt: Date;
+  failedAt: Date;
+  
+  errorMessage: string;
+}
+
 @Entity()
 @Index(["emitterChain", "emitterAddress", "sequence"], { unique: true })
 export class DefaultRelayEntity extends BaseEntity {
@@ -72,6 +107,7 @@ export class DefaultRelayEntity extends BaseEntity {
     }
   }
 
+  // Vaa basic info (required for any model):
   @ObjectIdColumn()
   _id: ObjectId;
 
@@ -80,6 +116,9 @@ export class DefaultRelayEntity extends BaseEntity {
 
   @Column()
   emitterAddress: string;
+  
+  @Column()
+  sequence: string;
 
   @Column()
   fromAddress: string;
@@ -87,8 +126,6 @@ export class DefaultRelayEntity extends BaseEntity {
   @Column()
   toAddress: string;
 
-  @Column()
-  sequence: string;
 
   @Column()
   status: RelayStatus;
