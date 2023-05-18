@@ -1,9 +1,8 @@
 import { ParsedVaaWithBytes } from "@wormhole-foundation/relayer-engine";
 import { setupStorage, StorageConfiguration } from "./storage";
-import { DefaultRelayEntity } from "./storage/model";
+import { EntityHandler, DefaultRelayEntity } from "./storage/model";
 
-
-export function getRelay(vaa: ParsedVaaWithBytes) {
+export function getRelay(entityHandler: EntityHandler, vaa: ParsedVaaWithBytes) {
   const { emitterChain, emitterAddress, sequence } = vaa.id;
 
   // TODO: do we need to check this? or can we assume that this will be present?
@@ -19,8 +18,6 @@ export function getRelay(vaa: ParsedVaaWithBytes) {
 export type ApiConfiguration = {
   port: 'number',
   // app?: Koa,
-  // mapRelayEntityToApiData?: (relayEntity: any) => any,
-
 }
 
 export async function startRelayDataApi(

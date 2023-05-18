@@ -1,16 +1,17 @@
-import { fetchVaaHash, RelayJob, RelayerEvents, RelayerApp, Context, Next } from '@wormhole-foundation/relayer-engine';
+import { BaseEntity } from 'typeorm';
+import { fetchVaaHash, RelayJob, RelayerEvents, RelayerApp, Context, Next, Environment } from '@wormhole-foundation/relayer-engine';
 // import { BaseEntity, DataSource } from 'typeorm';
 // import { Logger } from "winston";
 import { ParsedVaaWithBytes } from "@wormhole-foundation/relayer-engine/lib";
 
 import { withErrorHandling, tryTimes } from './utils';
 import { setupStorage, StorageConfiguration } from "./storage";
-import { DefaultRelayEntity, RelayStatus } from './storage/model';
+import { DefaultRelayEntity, RelayStatus, EntityHandler, DefaultEntityHandler } from './storage/model';
 import { getRelay } from './read-api';
 import winston from 'winston';
 
 export interface RelayStorageContext extends Context {
-  storedRelay: RelayMiddlewareInterface;
+  storedRelay?: RelayMiddlewareInterface;
 }
 
 class RelayMiddlewareInterface {
@@ -42,43 +43,15 @@ class RelayMiddlewareInterface {
   }
 }
 
-async function buildRelay(vaa: ParsedVaaWithBytes, job: RelayJob): Promise<DefaultRelayEntity> {
-  // Question for the code reviewer: should we have our own implementation of fetchVaaHash? does it make sense to use 
-  // the same implementation as the relayer-engine?
-  const txHash = await fetchVaaHash(
-    vaa.emitterChain,
-    vaa.emitterAddress,
-    vaa.sequence,
-    new winston.Logger(), // TODO proper logging
-    'testnet??'
-  );
-
-  const { emitterChain, emitterAddress, sequence } = vaa.id;
-
-  const relay = new DefaultRelayEntity({
-    emitterChain: emitterChain,
-    emitterAddress: emitterAddress,
-    sequence: sequence,
-    vaa: vaa.bytes,
-    status: RelayStatus.WAITING,
-    receivedAt: new Date(),
-    fromTxHash: txHash,
-    attempts: 0,
-    maxAttempts: job?.maxAttempts,
-  })
-
-  return relay;
-}
-
-const handleRelayAdded = withErrorHandling(async (vaa: ParsedVaaWithBytes, job?: RelayJob) => {
-  let relay = await getRelay(vaa);
+const handleRelayAdded = withErrorHandling(async (entityHandler: EntityHandler, vaa: ParsedVaaWithBytes, job?: RelayJob) => {
+  let relay = await getRelay(entityHandler, vaa);
 
   if (relay) {
-    console.warn(`Vaa Relay was added twice: ${JSON.stringify(vaa.id)}`);
+    //  logger.warn(`Vaa Relay was added twice: ${JSON.stringify(vaa.id)}`);
     relay.addedTimes = relay.addedTimes++;
   }
 
-  else relay = await buildRelay(vaa, job);
+  else relay = await entityHandler.mapToStorageDocument(vaa, job);
 
   return tryTimes(5, async () => {
     const result = await relay.save();
@@ -87,12 +60,12 @@ const handleRelayAdded = withErrorHandling(async (vaa: ParsedVaaWithBytes, job?:
   });
 });
 
-const handleRelayCompleted = withErrorHandling(async (vaa: ParsedVaaWithBytes, job?: RelayJob) => {
-  let relay = await getRelay(vaa);
+const handleRelayCompleted = withErrorHandling(async (entityHandler: EntityHandler, vaa: ParsedVaaWithBytes, job?: RelayJob) => {
+  let relay = await getRelay(entityHandler, vaa);
 
   if (!relay) {
-    console.warn(`Completed Relay Not Found on DB: ${JSON.stringify(vaa.id)}. Recreating...`);
-    relay = await buildRelay(vaa, job);
+    // logger.warn(`Completed Relay Not Found on DB: ${JSON.stringify(vaa.id)}. Recreating...`);
+    relay = await entityHandler.mapToStorageDocument(vaa, job);
   }
 
   relay.completedAt = new Date(),
@@ -105,12 +78,12 @@ const handleRelayCompleted = withErrorHandling(async (vaa: ParsedVaaWithBytes, j
   });
 });
 
-const handleRelayFailed = withErrorHandling(async (vaa: ParsedVaaWithBytes, job?: RelayJob) => {
-  let relay = await getRelay(vaa);
+const handleRelayFailed = withErrorHandling(async (entityHandler: EntityHandler, vaa: ParsedVaaWithBytes, job?: RelayJob) => {
+  let relay = await getRelay(entityHandler, vaa);
 
   if (!relay) {
-    console.warn(`Failed Relay Not Found on DB: ${JSON.stringify(vaa.id)}. Recreating...`);
-    relay = await buildRelay(vaa, job);
+    // logger.warn(`Failed Relay Not Found on DB: ${JSON.stringify(vaa.id)}. Recreating...`);
+    relay = await entityHandler.mapToStorageDocument(vaa, job);
   }
 
   relay.status = RelayStatus.FAILED;
@@ -123,7 +96,11 @@ const handleRelayFailed = withErrorHandling(async (vaa: ParsedVaaWithBytes, job?
   });
 });
 
-export function storeRelayerEngineRelays(app: RelayerApp<Context>, storageConfig: StorageConfiguration) {
+export function storeRelayerEngineRelays(
+  app: RelayerApp<Context>,
+  storageConfig: StorageConfiguration,
+  entityHandler: EntityHandler = new DefaultEntityHandler(),
+) {
   let storageError: string;
   let storageReady = false;
 
@@ -142,27 +119,30 @@ export function storeRelayerEngineRelays(app: RelayerApp<Context>, storageConfig
   };
 
   app.on(RelayerEvents.Added, (vaa: ParsedVaaWithBytes, job?: RelayJob) => {
-    doWhenStorageIsReady(handleRelayAdded)(vaa, job);
+    doWhenStorageIsReady(handleRelayAdded)(entityHandler, vaa, job);
   });
 
 
   app.on(RelayerEvents.Completed, (vaa: ParsedVaaWithBytes, job?: RelayJob) => {
-    doWhenStorageIsReady(handleRelayCompleted)(vaa, job);
+    doWhenStorageIsReady(handleRelayCompleted)(entityHandler, vaa, job);
   });
 
   app.on(RelayerEvents.Failed, (vaa: ParsedVaaWithBytes, job?: RelayJob) => {
-    doWhenStorageIsReady(handleRelayFailed)(vaa, job);
+    doWhenStorageIsReady(handleRelayFailed)(entityHandler, vaa, job);
   });
 
   app.use(async (ctx: RelayStorageContext, next: Next) => {
-    const relay = await getRelay(ctx.vaa);
+    const relay = await getRelay(entityHandler, ctx.vaa);
 
     // TODO:
-    // double check with gabi and RE code:
+    // double check with gabi and Relayer Engine code:
     //   - if the relay is already found it's safe to assume we are re-processing the vaa? (and thus we can call incrementAttempts)
     //   - if the relay is not found, it's safe to assume we are processing a new vaa? (and thus don't do anything since it'll be created on added event)
 
-    ctx.storedRelay = new RelayMiddlewareInterface(relay);
+    if (relay) {
+      // relay.incrementAttempts();
+      ctx.storedRelay = new RelayMiddlewareInterface(relay);
+    }
 
     await next();
 

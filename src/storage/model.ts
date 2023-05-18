@@ -1,3 +1,5 @@
+import winston from "winston";
+
 import {
   BaseEntity,
   Column,
@@ -7,6 +9,7 @@ import {
   ObjectIdColumn,
 } from "typeorm";
 import { ChainId, SignedVaa } from "@certusone/wormhole-sdk";
+import { ParsedVaaWithBytes, Environment, RelayJob, fetchVaaHash } from "@wormhole-foundation/relayer-engine";
 
 export enum RelayStatus {
   REDEEMED = "redeemed",
@@ -16,6 +19,48 @@ export enum RelayStatus {
 }
 
 export type UserMetadata = Record<string, any>;
+
+
+export interface EntityHandler {
+  entity: typeof BaseEntity;
+  mapToStorageDocument(vaa: ParsedVaaWithBytes, job: RelayJob): any;
+  mapToApiResponse(entityObject: BaseEntity): any;
+}
+
+export class DefaultEntityHandler implements EntityHandler {
+  public entity: typeof DefaultRelayEntity;
+  public async mapToStorageDocument(vaa: ParsedVaaWithBytes, job: RelayJob): Promise<DefaultRelayEntity> {
+  // Question for the code reviewer: should we have our own implementation of fetchVaaHash? does it make sense to use 
+  // the same implementation as the relayer-engine?
+  const txHash = await fetchVaaHash(
+    vaa.emitterChain,
+    vaa.emitterAddress,
+    vaa.sequence,
+    new winston.Logger(), // TODO proper logging
+    Environment.TESTNET, // TODO proper environment
+  );
+
+  const { emitterChain, emitterAddress, sequence } = vaa.id;
+
+  const relay = new DefaultRelayEntity({
+    emitterChain: emitterChain,
+    emitterAddress: emitterAddress,
+    sequence: sequence,
+    vaa: vaa.bytes,
+    status: RelayStatus.WAITING,
+    receivedAt: new Date(),
+    fromTxHash: txHash,
+    attempts: 0,
+    maxAttempts: job?.maxAttempts,
+  });
+
+  return relay;
+  }
+
+  public async mapToApiResponse(entityObject: DefaultRelayEntity) {
+    // 
+  }
+}
 
 @Entity()
 @Index(["emitterChain", "emitterAddress", "sequence"], { unique: true })
