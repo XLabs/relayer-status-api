@@ -18,6 +18,8 @@ export interface RelayStorageContext extends Context {
  * It will also take care of updating the relay job properties as they become available. (eg: errorMessage
  * property when the relay is considered to have failed)
  * The properties this library automatically keeps up to date are declared on MinimalRelayEntity interface.
+ * A class complying with the EntityHandler interface can be passed as parameter to customize the database
+ * entity and how it's handled.
  * 
  * It also adds `storedRelay` to the context (ctx.storedRelay), which is an interface that allows to manually
  * update some relay information that is not directly accessible to the relayer engine

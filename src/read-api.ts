@@ -1,17 +1,17 @@
 import Koa from "koa";
 import Router from "koa-router";
+import winston from "winston";
 import { ParsedVaaWithBytes } from "@wormhole-foundation/relayer-engine";
+
 import { setupStorage, StorageConfiguration } from "./storage";
 import { EntityHandler, DefaultEntityHandler } from "./storage/model";
-import winston from "winston";
+import { pick } from './utils';
+
+const supportedQueryStringParams = ['fromTxHash', 'emitterChain', 'emitterAddress', 'sequence', 'status', 'toTxHash', 'fromChain', 'toChain'];
 
 export function getRelay(entityHandler: EntityHandler<any>, vaa: ParsedVaaWithBytes) {
   const { emitterChain, emitterAddress, sequence } = vaa.id;
-
-  // TODO: do we need to check this? or can we assume that this will be present?
-  // In other words: is it always safe to assume that the vaa is valid?
   if (!emitterChain || !emitterAddress || !sequence) {
-    // logger.warning()
     throw new Error('Missing required parameter');
   }
 
@@ -59,22 +59,25 @@ export async function startRelayDataApi(
   const router = new Router({ prefix });
 
   router.get('/', async (ctx: Koa.Context, next: Koa.Next) => {
-    const txHash = ctx.query.txHash;
 
-    if (!txHash) {
+    const query = pick(ctx.query, supportedQueryStringParams);
+
+    if (query.emitterChain) query.emitterChain = parseInt(query.emitterChain);
+    
+    if (!Object.keys(query).length) {
       ctx.status = 400;
       ctx.body = {
-        error: 'Missing required parameter txHash',
+        error: `No params found on query-string. Supported search params: ${supportedQueryStringParams.join(", ")}`,
       };
       return;
     }
 
-    const relay = entityHandler.entity.findOne({ where: { txHash } });
+    const relay = await entityHandler.entity.find({ where: query });
 
-    if (!relay) {
+    if (!relay.length) {
       ctx.status = 404;
       ctx.body = {
-        error: 'Relay not found',
+        error: 'Not Found.',
       };
     }
 

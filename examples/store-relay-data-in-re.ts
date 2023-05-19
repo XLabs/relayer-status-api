@@ -28,7 +28,7 @@ import { logger } from './logger';
       'DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe',
       async (ctx: RelayStorageContext, next: Next) => {
         logger.info('Received Vaa with sequence:' + JSON.stringify(ctx.vaa?.id.sequence));
-        // await new Promise(resolve => setTimeout(resolve, 500));
+
         // TODO: Test adding metadata
       }
     );

@@ -21,8 +21,9 @@ export enum RelayStatus {
 export type UserMetadata = Record<string, any>;
 
 /**
- * Entity handler is used as a class that centralized mapping in and out of the database.
- * It will be passed by the user in case they need to use a different model to store relay data.
+ * Entity handler is used as a class that centralizes mapping in and out of the database.
+ * A class complying with this interface can be passed to the apis (write & read) to fully
+ * customize the database entity and how it's handled.
  * 
  * it contains:
  *   - the entity model to be used (needs to comply with MinimalRelayEntity interface below)
@@ -45,7 +46,7 @@ export class DefaultEntityHandler implements EntityHandler<typeof DefaultRelayEn
       vaa.emitterChain,
       vaa.emitterAddress,
       vaa.sequence,
-      logger, // TODO proper logging
+      logger,
       Environment.TESTNET, // TODO proper environment
     );
 
@@ -66,15 +67,21 @@ export class DefaultEntityHandler implements EntityHandler<typeof DefaultRelayEn
     return relay;
   }
 
+  /**
+   * This method provides a way to customize the api response by using an overriden method in a subclass.
+   * Right now I see no need to map or response in any particular way.
+   */
   public async mapToApiResponse(entityObject: InstanceType<typeof DefaultRelayEntity>) {
-    // 
+    return { data: entityObject };
   }
 }
 
 /**
  * The minimal data that can be collected for a relay.
  * Any entity to be used with the relayer-status api should at least implement
- * this basic properties
+ * this basic properties.
+ * This properties will  be automatically updated for relays by the
+ * the relayer-status-api lib and will be available for every relay out of the box.
  */
 export interface MinimalRelayEntity extends BaseEntity {
   // Vaa base data:
@@ -96,6 +103,8 @@ export interface MinimalRelayEntity extends BaseEntity {
   failedAt: Date;
 
   errorMessage: string;
+
+  metadata: UserMetadata;
 }
 
 @Entity()
@@ -108,7 +117,12 @@ export class DefaultRelayEntity extends BaseEntity {
     }
   }
 
-  // Vaa basic info (required for any model):
+  /**
+   * This data is automatically mantained by the relayer-status-api lib
+   * and will be available for every relay out of the box:
+   */
+
+  // Vaa basic info:
   @ObjectIdColumn()
   _id: ObjectId;
 
@@ -122,48 +136,19 @@ export class DefaultRelayEntity extends BaseEntity {
   sequence: string;
 
   @Column()
-  fromAddress: string;
-
-  @Column()
-  toAddress: string;
-
-
-  @Column()
-  status: RelayStatus;
+  vaa: SignedVaa;
 
   @Column()
   @Index()
   fromTxHash: string;
 
+
+  // Vaa Status Info:
   @Column()
-  toTxHash: string;
+  status: RelayStatus;
 
   @Column()
-  toWrappedAssetAddress: string;
-
-  @Column()
-  symbol: string;
-
-  @Column()
-  amountTransferred: string;
-
-  @Column()
-  amountToSwap: string;
-
-  @Column()
-  estimatedNativeAssetAmount: string;
-
-  @Column()
-  nativeAssetReceived: string;
-
-  @Column()
-  feeAmount: string;
-
-  @Column()
-  errorMessage: string;
-
-  @Column()
-  gasUsed: string;
+  addedTimes: number;
 
   @Column()
   attempts: number;
@@ -171,11 +156,6 @@ export class DefaultRelayEntity extends BaseEntity {
   @Column()
   maxAttempts: number;
 
-  @Column()
-  gasPrice: string;
-
-  @Column()
-  vaa: SignedVaa;
 
   @Column()
   receivedAt: Date;
@@ -187,10 +167,16 @@ export class DefaultRelayEntity extends BaseEntity {
   failedAt: Date;
 
   @Column()
-  toChain: ChainId;
+  errorMessage: string;
 
+
+  /**
+   * This data is not directly accessible to the relayer engine
+   * and needs to be updated by the user of the relayer-status-api
+   * by calling storedRelay.addMetadata or storedRelay.setTargetTxHash methods
+   */
   @Column()
-  addedTimes: number;
+  toTxHash: string;
 
   @Column()
   metadata: UserMetadata

@@ -36,3 +36,10 @@ export async function tryTimes(retryTimes: number, fn: () => any) {
 
   throw error;
 }
+
+export function pick (obj: any, keys: string[]) {
+  return keys.reduce((acc: any, key) => {
+    if (obj[key]) acc[key] = obj[key];
+    return acc;
+  }, {});
+}
