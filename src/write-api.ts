@@ -13,24 +13,24 @@ export interface RelayStorageContext extends Context {
 
 /**
  * storeRelayerEngineRelays attaches to a relayer-engine (@xlabs-xyz/relayer-engine) application 
- * and takes care of storing all relays that the relayer-engine considers a workflow
- * in thedatabase and updating the relay job properties as they become 
- * available (eg: errorMessage property when the relay is considered to have failed)
+ * and takes care of persisting all VAAs that the relayer-engine creates a workflow for
  * 
- * It automatically keeps all properties declared on MinimalRelayEntity up to date
+ * It will also take care of updating the relay job properties as they become available. (eg: errorMessage
+ * property when the relay is considered to have failed)
+ * The properties this library automatically keeps up to date are declared on MinimalRelayEntity interface.
  * 
- * it also adds `storedRelay` to the context (ctx.storedRelay), which is an interface that allows to manually
+ * It also adds `storedRelay` to the context (ctx.storedRelay), which is an interface that allows to manually
  * update some relay information that is not directly accessible to the relayer engine
  * (eg target transaction data like toTxHash, feeAmount, gasUsed, ...)
  * It's also possible to use the `storedRelay` interface to store arbitrary metadata
  * using the `addMetadata` method.
  * 
- * the interface added to the context (ctx.storedRelay) contains a method that allows to add arbitrary
- * metadata to the relay (ctx.storedRelay.addMetadata({ foo: 'bar' }).
- * All metadata added will be collected across all middleware and stored in the database as a single
+ * All updates to a relay will be collected across all middleware and stored in the database in a single
  * operation after all middlewares have been executed.
- * Error handling is taken care of.
  * 
+ * By design this module aims not to interrupt the relayer-engine workflow and will not throw errors.
+ * All database operation are automatically retryed with exponential back-off and errors are handled in case
+ * of ultimately failing. 
  */
 export function storeRelayerEngineRelays(
   app: RelayerApp<Context>,
