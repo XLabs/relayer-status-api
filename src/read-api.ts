@@ -45,7 +45,7 @@ export async function startRelayDataApi(
   apiConfig: ApiConfiguration,
   entityHandler: EntityHandler<any> = new DefaultEntityHandler(),
 ) {
-  const storage = await setupStorage(storageConfig);
+  await setupStorage(storageConfig);
 
   const {
     logger,
@@ -72,27 +72,29 @@ export async function startRelayDataApi(
       return;
     }
 
-    const relay = await entityHandler.entity.find({ where: query });
+    const relays = await entityHandler.entity.find({ where: query });
 
-    if (!relay.length) {
+    if (!relays.length) {
       ctx.status = 404;
       ctx.body = {
         error: 'Not Found.',
       };
     }
 
-    let responseRelay;
+    const responseData = [];
 
-    try {
-      responseRelay = await entityHandler.mapToApiResponse(relay);
-    } catch (error) {
-      ctx.status = 500;
-      ctx.body = {
-        error: 'Failed to map relay to API response',
-      };
+    for (const relay of relays) {
+      try {
+        responseData.push(await entityHandler.mapToApiResponse(relay));
+      } catch (error) {
+        responseData.push({
+          error: 'Failed to map relay to API response',
+          vaa: pick(relay, ['emitterAddress', 'emitterChain', 'sequence'])
+        });
+      }
     }
 
-    ctx.body = responseRelay;
+    ctx.body = responseData;
   });
 
   app.use(router.routes());

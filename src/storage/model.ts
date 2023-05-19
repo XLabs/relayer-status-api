@@ -72,7 +72,7 @@ export class DefaultEntityHandler implements EntityHandler<typeof DefaultRelayEn
    * Right now I see no need to map or response in any particular way.
    */
   public async mapToApiResponse(entityObject: InstanceType<typeof DefaultRelayEntity>) {
-    return { data: entityObject };
+    return entityObject;
   }
 }
 
