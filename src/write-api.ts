@@ -138,7 +138,6 @@ const handleRelayAdded = async (
   else relay = await entityHandler.mapToStorageDocument(vaa, job, logger);
 
   await tryTimes(5, async () => {
-    
     await relay.save();
     logger?.debug(`Relay Stored: ${relayLogString(vaa)}`);
   });
@@ -150,6 +149,16 @@ const handleRelayCompleted = async (
   logger?.debug(`Completing relay: ${relayLogString(vaa)}`);
   let relay: typeof entityHandler.entity;
 
+  /**
+   * By design relayer-status-api aims to have its execution decoupled from the main relayer-engine process.
+   * For this reason, the update of the main properties of the relay entity, such as status, are executed 
+   * responding to the relayer-engine events (added, completed, failed).
+   * 
+   * In some scenarios, however, this might generate race conditions since the 'completed' event might be
+   * triggered before the original 'added' event has finished storing the relay entity on the database.
+   * For this reason, we try to get the relay entity from the database a few times before giving up.
+   * This retry functionality should be more than enough to solve for the race condition.
+   */
   await tryTimes(5, async () => {
     relay = await getRelay(entityHandler, vaa);
     if (!relay) throw new Error('Relay not found');
@@ -176,6 +185,16 @@ const handleRelayFailed = async (
 
   let relay: typeof entityHandler.entity;
 
+  /**
+   * By design relayer-status-api aims to have its execution decoupled from the main relayer-engine process.
+   * For this reason, the update of the main properties of the relay entity, such as status, are executed 
+   * responding to the relayer-engine events (added, completed, failed).
+   * 
+   * In some scenarios, however, this might generate race conditions since the 'completed' event might be
+   * triggered before the original 'added' event has finished storing the relay entity on the database.
+   * For this reason, we try to get the relay entity from the database a few times before giving up.
+   * This retry functionality should be more than enough to solve for the race condition.
+   */
   await tryTimes(5, async () => {
     relay = await getRelay(entityHandler, vaa);
     if (!relay) throw new Error('Relay not found');
@@ -191,7 +210,7 @@ const handleRelayFailed = async (
 
   await tryTimes(5, async () => {
     await relay.save();
-    logger?.info(`Relay marked failed: ${relayLogString(vaa)}`);
+    logger?.debug(`Relay marked failed: ${relayLogString(vaa)}`);
   });
 };
 
