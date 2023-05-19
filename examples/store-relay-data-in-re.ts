@@ -30,6 +30,8 @@ import { logger } from './logger';
         logger.info('Received Vaa with sequence:' + JSON.stringify(ctx.vaa?.id.sequence));
 
         // TODO: Test adding metadata
+        ctx.storedRelay?.addMetadata({ test: 'test' });
+        // ctx.storedRelay?.setTargetTxHash('test');
       }
     );
 
