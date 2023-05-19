@@ -2,11 +2,16 @@ import { Logger } from 'winston';
 import { RelayJob, RelayerEvents, RelayerApp, Context, Next } from '@wormhole-foundation/relayer-engine';
 import { ParsedVaaWithBytes } from "@wormhole-foundation/relayer-engine/lib";
 
-import { withErrorHandling, tryTimes } from './utils';
+import { withErrorHandling, tryTimes, pick } from './utils';
 import { setupStorage, StorageConfiguration } from "./storage";
-import { DefaultRelayEntity, RelayStatus, EntityHandler, DefaultEntityHandler } from './storage/model';
+import { DefaultRelayEntity, RelayStatus, EntityHandler, DefaultEntityHandler, MinimalRelayEntity } from './storage/model';
 import { getRelay } from './read-api';
 
+async function updateRelay(entityHandler: EntityHandler<any>, relay: DefaultRelayEntity, updates: Partial<MinimalRelayEntity>) {
+  const validUpdates = pick(updates, entityHandler.properties);
+  if (!Object.keys(validUpdates).length) return;
+  await entityHandler.entity.update(pick(relay, ['_id']), validUpdates);
+}
 export interface RelayStorageContext extends Context {
   storedRelay?: RelayMiddlewareInterface;
 }
@@ -71,7 +76,7 @@ export function storeRelayerEngineRelays(
   });
 
   app.use(async (ctx: RelayStorageContext, next: Next) => {
-    const relay = await getRelay(entityHandler, ctx.vaa);
+    const relay = await getRelayPossiblyOnCreateState(entityHandler, ctx.vaa);
 
     // TODO:
     // double check with gabi and Relayer Engine code:
@@ -79,15 +84,15 @@ export function storeRelayerEngineRelays(
     //   - if the relay is not found, it's safe to assume we are processing a new vaa? (and thus don't do anything since it'll be created on added event)
 
     if (relay) {
-      // relay.incrementAttempts();
-      ctx.storedRelay = new RelayMiddlewareInterface(relay);
+      ctx.storedRelay = new RelayMiddlewareInterface(relay, entityHandler);
+      ctx.storedRelay.incrementAttempts();
     }
 
     await next();
 
     if (ctx.storedRelay?.touched()) {
       await withErrorHandling(logger)(tryTimes)(5, async () => {
-        await relay.save();
+        await ctx.storedRelay.applyChanges();
       });
     }
   });
@@ -95,9 +100,9 @@ export function storeRelayerEngineRelays(
 
 class RelayMiddlewareInterface {
   private changes = {};
-  constructor(private relay: DefaultRelayEntity) {}
+  constructor(private relay: DefaultRelayEntity, private entityHandler: EntityHandler<any>) {}
 
-  public update(props: Record<string, any>) {
+  private update(props: Record<string, any>) {
     if (Object.keys(props).length) {
       Object.assign(this.changes, props);
     }
@@ -119,6 +124,10 @@ class RelayMiddlewareInterface {
 
   public touched () {
     return Object.keys(this.changes).length > 0;
+  }
+
+  public async applyChanges() {
+    await updateRelay(this.entityHandler, this.relay, this.changes);
   }
 }
 
@@ -142,42 +151,48 @@ const handleRelayAdded = async (
   await tryTimes(5, async () => {
     await relay.save();
     logger?.debug(`Relay Stored: ${relayLogString(vaa)}`);
-  });
+  })
 };
+
+/**
+ * By design relayer-status-api aims to have its execution decoupled from the main relayer-engine process.
+ * For this reason, the update of the main properties of the relay entity, such as status, are executed 
+ * responding to the relayer-engine events (added, completed, failed).
+ * 
+ * In some scenarios, however, this might generate race conditions since the 'completed' event might be
+ * triggered before the original 'added' event has finished storing the relay entity on the database.
+ * For this reason, we try to get the relay entity from the database a few times before giving up.
+ * This retry functionality should be more than enough to solve for the race condition.
+ */
+async function getRelayPossiblyOnCreateState(entityHandler: EntityHandler<any>, vaa: ParsedVaaWithBytes) {
+  let relay: typeof entityHandler.entity;
+
+  await tryTimes(5, async () => {
+    relay = await getRelay(entityHandler, vaa);
+    if (!relay) throw new Error('Relay not found');
+  });
+
+  return relay;
+}
 
 const handleRelayCompleted = async (
   entityHandler: EntityHandler<any>, vaa: ParsedVaaWithBytes, job?: RelayJob, logger?: Logger
 ) => {
   logger?.debug(`Completing relay: ${relayLogString(vaa)}`);
-  let relay: typeof entityHandler.entity;
 
-  /**
-   * By design relayer-status-api aims to have its execution decoupled from the main relayer-engine process.
-   * For this reason, the update of the main properties of the relay entity, such as status, are executed 
-   * responding to the relayer-engine events (added, completed, failed).
-   * 
-   * In some scenarios, however, this might generate race conditions since the 'completed' event might be
-   * triggered before the original 'added' event has finished storing the relay entity on the database.
-   * For this reason, we try to get the relay entity from the database a few times before giving up.
-   * This retry functionality should be more than enough to solve for the race condition.
-   */
-  await tryTimes(5, async () => {
-    relay = await getRelay(entityHandler, vaa);
-    if (!relay) throw new Error('Relay not found');
-  });
+  let relay = await getRelayPossiblyOnCreateState(entityHandler, vaa);
 
   if (!relay) {
     logger?.warn(`Completed Relay Not Found on DB: ${JSON.stringify(vaa.id)}. Recreating...`);
     relay = await entityHandler.mapToStorageDocument(vaa, job, logger);
   }
 
-  relay.completedAt = new Date(),
-  relay.status = RelayStatus.REDEEMED;
+  const changes = { completedAt: new Date(), status: RelayStatus.REDEEMED };
 
   await tryTimes(5, async () => {
-    await relay.save();
+    await updateRelay(entityHandler, relay, changes);
     logger?.debug(`Relay marked completed: ${relayLogString(vaa)}`);
-  });
+  })
 };
 
 const handleRelayFailed = async (
@@ -185,34 +200,20 @@ const handleRelayFailed = async (
 ) => {
   logger?.debug(`Failing relay: ${relayLogString(vaa)}`);
 
-  let relay: typeof entityHandler.entity;
-
-  /**
-   * By design relayer-status-api aims to have its execution decoupled from the main relayer-engine process.
-   * For this reason, the update of the main properties of the relay entity, such as status, are executed 
-   * responding to the relayer-engine events (added, completed, failed).
-   * 
-   * In some scenarios, however, this might generate race conditions since the 'completed' event might be
-   * triggered before the original 'added' event has finished storing the relay entity on the database.
-   * For this reason, we try to get the relay entity from the database a few times before giving up.
-   * This retry functionality should be more than enough to solve for the race condition.
-   */
-  await tryTimes(5, async () => {
-    relay = await getRelay(entityHandler, vaa);
-    if (!relay) throw new Error('Relay not found');
-  });
+  let relay = await getRelayPossiblyOnCreateState(entityHandler, vaa);
 
   if (!relay) {
-    logger?.warn(`Failed Relay Not Found on DB: ${JSON.stringify(vaa.id)}. Recreating...`);
+    logger?.warn(`Failed Relay Not Found on DB: ${relayLogString(vaa)}. Recreating...`);
     relay = await entityHandler.mapToStorageDocument(vaa, job, logger);
   }
 
-  relay.status = RelayStatus.FAILED;
-  relay.failedAt = new Date();
+  const changes = { failedAt: new Date(), status: RelayStatus.FAILED };
 
   await tryTimes(5, async () => {
-    await relay.save();
+    await updateRelay(entityHandler, relay, changes);
     logger?.debug(`Relay marked failed: ${relayLogString(vaa)}`);
+  }).catch((error) => {
+    logger?.error(`Error marking relay failed: ${relayLogString(vaa)}: ${error}`);
   });
 };
 

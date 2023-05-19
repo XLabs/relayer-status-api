@@ -26,7 +26,6 @@ export async function tryTimes(retryTimes: number, fn: () => any) {
     try {
       result = await fn();
     } catch (e) {
-      console.log('Retrying due to error', e.message);
       error = e;
       continue;
     }

@@ -12,7 +12,6 @@ import { logger } from './logger';
     // datasourceOptions: {},
   } 
 
-
   const apiConfiguration : ApiConfiguration = {
     port: 4200,
     prefix: '/relay-status-api',

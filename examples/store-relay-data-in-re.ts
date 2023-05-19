@@ -33,7 +33,6 @@ import { logger } from './logger';
       }
     );
 
-
   app.spy('localhost:7073');
 
   app.listen().then(() => {

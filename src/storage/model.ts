@@ -32,13 +32,30 @@ export type UserMetadata = Record<string, any>;
  */
 export interface EntityHandler<T extends abstract new (...args: any[]) => any> {
   entity: T;
+  properties: string[];
   mapToStorageDocument(vaa: ParsedVaaWithBytes, job: RelayJob, logger?: winston.Logger): any;
   mapToApiResponse(entityObject: InstanceType<T>): any;
 }
 
 export class DefaultEntityHandler implements EntityHandler<typeof DefaultRelayEntity> {
   public entity = DefaultRelayEntity;
-
+  public properties: string[] = [
+    'emitterChain',
+    'emitterAddress',
+    'sequence',
+    'vaa',
+    'fromTxHash',
+    'status',
+    'addedTimes',
+    'attempts',
+    'maxAttempts',
+    'receivedAt',
+    'completedAt',
+    'failedAt',
+    'errorMessage',
+    'toTxHash',
+    'metadata',
+  ];
   public async mapToStorageDocument(vaa: ParsedVaaWithBytes, job: RelayJob, logger?: winston.Logger): Promise<DefaultRelayEntity> {
     // Question for the code reviewer: should we have our own implementation of fetchVaaHash? does it make sense to use 
     // the same implementation as the relayer-engine?
@@ -104,6 +121,7 @@ export interface MinimalRelayEntity extends BaseEntity {
 
   errorMessage: string;
 
+  toTxHash: string;
   metadata: UserMetadata;
 }
 
