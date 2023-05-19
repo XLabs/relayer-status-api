@@ -1,12 +1,13 @@
+import { Logger } from 'winston';
 
 
-export const withErrorHandling = (fn: (...args: any[]) => any) => async (...args: any[]) => {
+export const withErrorHandling = (logger?: Logger) => (fn: (...args: any[]) => any) => async (...args: any[]) => {
   let result;
   try {
     result = await fn(...args);
   } catch (e) {
     // TODO: Proper logging
-    // console.error(e);
+    logger.error(`There was an error writing to the database: Error: ${e}`);
   }
   return result;
 };
@@ -16,23 +17,22 @@ export function exponentialBackOff(attempt: number) {
   return new Promise((resolve) => setTimeout(resolve, backoffTime));
 }
 
-export function tryTimes(retryTimes: number, fn: (...args: any[]) => any) {
-  return async (...args: any[]) => {
-    let error;
-    for (let i = 0; i <= retryTimes; i++) {
-      await exponentialBackOff(i);
-      let result;
+export async function tryTimes(retryTimes: number, fn: () => any) {
+  let error;
+  for (let i = 0; i <= retryTimes; i++) {
+    await exponentialBackOff(i);
+    let result;
 
-      try {
-        result = await fn(...args);
-      } catch (e) {
-        error = e;
-        continue;
-      }
-
-      return result;
+    try {
+      result = await fn();
+    } catch (e) {
+      console.log('Retrying due to error', e.message);
+      error = e;
+      continue;
     }
 
-    throw error;
-  };
+    return result;
+  }
+
+  throw error;
 }

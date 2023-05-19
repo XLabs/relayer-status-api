@@ -1,7 +1,7 @@
 {
     "compilerOptions": {
       "experimentalDecorators": true,
-      "outDir": "build",
+      "outDir": "lib",
       "target": "ESNext",
       "module": "CommonJS",
       "moduleResolution": "node",

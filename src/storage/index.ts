@@ -39,12 +39,16 @@ export type StorageConfiguration = {
  */
 export async function setupStorage(config: StorageConfiguration): Promise<typeof DefaultRelayEntity> {
   const {
+    logger,
     storageType,
     connectionUrl,
     databaseName,
     datasourceOptions = {},
     abortOnConnectionError = true,
   } = config;
+
+  logger?.debug('Initializing storage connection');
+  logger?.debug(`Storage type: ${storageType}`);
 
   const opts = {
     ...datasourceOptions,
@@ -69,6 +73,8 @@ export async function setupStorage(config: StorageConfiguration): Promise<typeof
 
     else throw new Error(errorMessage);
   }
+
+  logger?.info('Storage connection initialized');
 
   return DefaultRelayEntity;
 }

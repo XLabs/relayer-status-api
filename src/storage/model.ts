@@ -3,8 +3,8 @@ import winston from "winston";
 import {
   BaseEntity,
   Column,
-  Entity,
   Index,
+  Entity,
   ObjectId,
   ObjectIdColumn,
 } from "typeorm";
@@ -29,43 +29,44 @@ export type UserMetadata = Record<string, any>;
  *   - a method to map a vaa to a storage document
  *   - a method to map a storage document to an api response
  */
-export interface EntityHandler {
-  entity: typeof BaseEntity;
-  mapToStorageDocument(vaa: ParsedVaaWithBytes, job: RelayJob): any;
-  mapToApiResponse(entityObject: BaseEntity): any;
+export interface EntityHandler<T extends abstract new (...args: any[]) => any> {
+  entity: T;
+  mapToStorageDocument(vaa: ParsedVaaWithBytes, job: RelayJob, logger?: winston.Logger): any;
+  mapToApiResponse(entityObject: InstanceType<T>): any;
 }
 
-export class DefaultEntityHandler implements EntityHandler {
-  public entity: typeof DefaultRelayEntity;
-  public async mapToStorageDocument(vaa: ParsedVaaWithBytes, job: RelayJob): Promise<DefaultRelayEntity> {
-  // Question for the code reviewer: should we have our own implementation of fetchVaaHash? does it make sense to use 
-  // the same implementation as the relayer-engine?
-  const txHash = await fetchVaaHash(
-    vaa.emitterChain,
-    vaa.emitterAddress,
-    vaa.sequence,
-    new winston.Logger(), // TODO proper logging
-    Environment.TESTNET, // TODO proper environment
-  );
+export class DefaultEntityHandler implements EntityHandler<typeof DefaultRelayEntity> {
+  public entity = DefaultRelayEntity;
 
-  const { emitterChain, emitterAddress, sequence } = vaa.id;
+  public async mapToStorageDocument(vaa: ParsedVaaWithBytes, job: RelayJob, logger?: winston.Logger): Promise<DefaultRelayEntity> {
+    // Question for the code reviewer: should we have our own implementation of fetchVaaHash? does it make sense to use 
+    // the same implementation as the relayer-engine?
+    const txHash = await fetchVaaHash(
+      vaa.emitterChain,
+      vaa.emitterAddress,
+      vaa.sequence,
+      logger, // TODO proper logging
+      Environment.TESTNET, // TODO proper environment
+    );
 
-  const relay = new DefaultRelayEntity({
-    emitterChain: emitterChain,
-    emitterAddress: emitterAddress,
-    sequence: sequence,
-    vaa: vaa.bytes,
-    status: RelayStatus.WAITING,
-    receivedAt: new Date(),
-    fromTxHash: txHash,
-    attempts: 0,
-    maxAttempts: job?.maxAttempts,
-  });
+    const { emitterChain, emitterAddress, sequence } = vaa.id;
 
-  return relay;
+    const relay = new this.entity({
+      emitterChain: emitterChain,
+      emitterAddress: emitterAddress,
+      sequence: sequence,
+      vaa: vaa.bytes,
+      status: RelayStatus.WAITING,
+      receivedAt: new Date(),
+      fromTxHash: txHash,
+      attempts: 0,
+      maxAttempts: job?.maxAttempts,
+    });
+
+    return relay;
   }
 
-  public async mapToApiResponse(entityObject: DefaultRelayEntity) {
+  public async mapToApiResponse(entityObject: InstanceType<typeof DefaultRelayEntity>) {
     // 
   }
 }
@@ -93,7 +94,7 @@ export interface MinimalRelayEntity extends BaseEntity {
   receivedAt: Date;
   completedAt: Date;
   failedAt: Date;
-  
+
   errorMessage: string;
 }
 
@@ -116,7 +117,7 @@ export class DefaultRelayEntity extends BaseEntity {
 
   @Column()
   emitterAddress: string;
-  
+
   @Column()
   sequence: string;
 
