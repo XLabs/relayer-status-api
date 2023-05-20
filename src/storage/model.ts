@@ -78,6 +78,7 @@ export class DefaultEntityHandler implements EntityHandler<typeof DefaultRelayEn
       receivedAt: new Date(),
       fromTxHash: txHash,
       attempts: 0,
+      addedTimes: 1,
       maxAttempts: job?.maxAttempts,
     });
 

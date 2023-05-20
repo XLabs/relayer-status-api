@@ -27,11 +27,10 @@ import { logger } from './logger';
     .address(
       'DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe',
       async (ctx: RelayStorageContext, next: Next) => {
-        logger.info('Received Vaa with sequence:' + JSON.stringify(ctx.vaa?.id.sequence));
+        logger.info(`Processing VAA ${ctx.vaa?.id.sequence}...`);
 
-        // TODO: Test adding metadata
-        ctx.storedRelay?.addMetadata({ test: 'test' });
-        // ctx.storedRelay?.setTargetTxHash('test');
+        ctx.storedRelay?.addMetadata({ test: 'test', obj: { test: 'obj'} });
+        ctx.storedRelay?.setTargetTxHash('0xabc123');
       }
     );
 

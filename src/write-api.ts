@@ -110,6 +110,11 @@ class RelayMiddlewareInterface {
     return this;
   }
 
+  public setTargetTxHash(txHash: string) {
+    this.update({ toTxHash: txHash });
+    return this;
+  }
+
   public addMetadata(metadata: Record<string, any>) {
     const existing = this.relay.metadata || {};
     this.update({ metadata: { ...existing, ...metadata } });
@@ -151,7 +156,7 @@ const handleRelayAdded = async (
   await tryTimes(5, async () => {
     await relay.save();
     logger?.debug(`Relay Stored: ${relayLogString(vaa)}`);
-  })
+  });
 };
 
 /**
