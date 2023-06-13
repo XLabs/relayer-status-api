@@ -39,8 +39,8 @@ export interface RelayStorageContext extends Context {
  * All database operation are automatically retryed with exponential back-off and errors are handled in case
  * of ultimately failing. 
  */
-export function storeRelayerEngineRelays(
-  app: RelayerApp<Context>,
+export function storeRelayerEngineRelays<t extends Context>(
+  app: RelayerApp<t>,
   storageConfig: StorageConfiguration,
   entityHandler: EntityHandler<any> = new DefaultEntityHandler(),
 ) {
@@ -78,11 +78,6 @@ export function storeRelayerEngineRelays(
   app.use(async (ctx: RelayStorageContext, next: Next) => {
     const relay = await getRelayPossiblyOnCreateState(entityHandler, ctx.vaa);
 
-    // TODO:
-    // double check with gabi and Relayer Engine code:
-    //   - if the relay is already found it's safe to assume we are re-processing the vaa? (and thus we can call incrementAttempts)
-    //   - if the relay is not found, it's safe to assume we are processing a new vaa? (and thus don't do anything since it'll be created on added event)
-
     if (relay) {
       ctx.storedRelay = new RelayMiddlewareInterface(relay, entityHandler);
       ctx.storedRelay.incrementAttempts();
@@ -100,7 +95,7 @@ export function storeRelayerEngineRelays(
 
 class RelayMiddlewareInterface {
   private changes = {};
-  constructor(private relay: DefaultRelayEntity, private entityHandler: EntityHandler<any>) {}
+  constructor(private relay: DefaultRelayEntity, private entityHandler: EntityHandler<any>) { }
 
   private update(props: Record<string, any>) {
     if (Object.keys(props).length) {
@@ -127,7 +122,7 @@ class RelayMiddlewareInterface {
     return this;
   }
 
-  public touched () {
+  public touched() {
     return Object.keys(this.changes).length > 0;
   }
 
