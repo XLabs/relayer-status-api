@@ -11,7 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@wormhole-foundation/relayer-engine": "github:wormhole-foundation/relayer-engine#ab1e9541f120b071553a334d669062be4040cfe7",
+    "@wormhole-foundation/relayer-engine": "github:wormhole-foundation/relayer-engine#634c241d139bcd92a003cdedcdbc75fed1589c5b",
     "koa": "^2.14.2",
     "koa-router": "^12.0.0",
     "reflect-metadata": "^0.1.13",
