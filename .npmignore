@@ -1,0 +1,7 @@
+.idea
+npm-debug.log
+.vscode
+.nyc
+.env
+.DS_Store
+examples/node_modules/*
