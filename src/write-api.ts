@@ -83,12 +83,14 @@ export function storeRelayerEngineRelays<t extends Context>(
       ctx.storedRelay.incrementAttempts();
     }
 
-    await next();
-
-    if (ctx.storedRelay?.touched()) {
-      await withErrorHandling(logger)(tryTimes)(5, async () => {
-        await ctx.storedRelay.applyChanges();
-      });
+    try {
+      await next();
+    } finally {
+      if (ctx.storedRelay?.touched()) {
+        await withErrorHandling(logger)(tryTimes)(5, async () => {
+          await ctx.storedRelay.applyChanges();
+        });
+      }
     }
   });
 };
