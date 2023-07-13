@@ -7,7 +7,7 @@ export const withErrorHandling = (logger?: Logger) => (fn: (...args: any[]) => a
     result = await fn(...args);
   } catch (e) {
     // TODO: Proper logging
-    logger.error(`There was an error writing to the database: Error: ${e}`);
+    logger?.error(`There was an error writing to the database: Error: ${e}`);
   }
   return result;
 };
