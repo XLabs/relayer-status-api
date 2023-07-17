@@ -1,5 +1,6 @@
 import Koa from "koa";
 import Router from "koa-router";
+import cors from "@koa/cors";
 import winston from "winston";
 import { ParsedVaaWithBytes } from "@wormhole-foundation/relayer-engine";
 
@@ -53,6 +54,8 @@ export async function startRelayDataApi(
     app = new Koa(),
     prefix = '/relay-status-api',
   } = apiConfig;
+  
+  app.use(cors());
 
   if (logger) app.use(logRequestMetricsMiddleware(logger));
 
