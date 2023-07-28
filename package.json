@@ -1,6 +1,6 @@
 {
   "name": "@xlabs-xyz/relayer-status-api",
-  "version": "0.0.11",
+  "version": "0.0.14",
   "description": "",
   "main": "./lib/index.js",
   "scripts": {
@@ -12,7 +12,7 @@
   "license": "ISC",
   "dependencies": {
     "@koa/cors": "^4.0.0",
-    "@wormhole-foundation/relayer-engine": "github:wormhole-foundation/relayer-engine#61580295557cc097e997d978825ad71575997311",
+    "@wormhole-foundation/relayer-engine": "github:wormhole-foundation/relayer-engine#37d0cbc74b99f560dc2c2d878fd05ca54ba75544",
     "koa": "^2.14.2",
     "koa-router": "^12.0.0",
     "reflect-metadata": "^0.1.13",
