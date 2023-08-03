@@ -5,17 +5,28 @@ import { ParsedVaaWithBytes } from "@wormhole-foundation/relayer-engine";
 
 import { setupStorage, StorageConfiguration } from "./storage";
 import { EntityHandler, DefaultEntityHandler } from "./storage/model";
-import { pick } from './utils';
+import { pick } from "./utils";
 
-const supportedQueryStringParams = ['fromTxHash', 'emitterChain', 'emitterAddress', 'sequence', 'status', 'toTxHash', 'fromChain', 'toChain'];
+const supportedQueryStringParams = [
+  "fromTxHash",
+  "emitterChain",
+  "emitterAddress",
+  "sequence",
+  "status",
+  "toTxHash",
+  "fromChain",
+  "toChain",
+];
 
 export function getRelay(entityHandler: EntityHandler<any>, vaa: ParsedVaaWithBytes) {
   const { emitterChain, emitterAddress, sequence } = vaa.id;
   if (!emitterChain || !emitterAddress || !sequence) {
-    throw new Error('Missing required parameter');
+    throw new Error("Missing required parameter");
   }
 
-  return entityHandler.entity.findOne({ where: { emitterChain, emitterAddress, sequence } });
+  return entityHandler.entity.findOne({
+    where: { emitterChain, emitterAddress, sequence },
+  });
 }
 
 function logRequestMetricsMiddleware(logger: winston.Logger) {
@@ -30,7 +41,7 @@ function logRequestMetricsMiddleware(logger: winston.Logger) {
       duration,
       status: ctx.status,
     });
-  }
+  };
 }
 
 export type ApiConfiguration = {
@@ -38,7 +49,7 @@ export type ApiConfiguration = {
   port?: number;
   prefix?: string;
   logger?: winston.Logger;
-}
+};
 
 export async function startRelayDataApi(
   storageConfig: StorageConfiguration,
@@ -47,23 +58,17 @@ export async function startRelayDataApi(
 ) {
   await setupStorage(storageConfig);
 
-  const {
-    logger,
-    port = 4200,
-    app = new Koa(),
-    prefix = '/relay-status-api',
-  } = apiConfig;
+  const { logger, port = 4200, app = new Koa(), prefix = "/relay-status-api" } = apiConfig;
 
   if (logger) app.use(logRequestMetricsMiddleware(logger));
 
   const router = new Router({ prefix });
 
-  router.get('/', async (ctx: Koa.Context, next: Koa.Next) => {
-
+  router.get("/", async (ctx: Koa.Context, next: Koa.Next) => {
     const query = pick(ctx.query, supportedQueryStringParams);
 
     if (query.emitterChain) query.emitterChain = parseInt(query.emitterChain);
-    
+
     if (!Object.keys(query).length) {
       ctx.status = 400;
       ctx.body = {
@@ -77,7 +82,7 @@ export async function startRelayDataApi(
     if (!relays.length) {
       ctx.status = 404;
       ctx.body = {
-        error: 'Not Found.',
+        error: "Not Found.",
       };
     }
 
@@ -88,8 +93,8 @@ export async function startRelayDataApi(
         responseData.push(await entityHandler.mapToApiResponse(relay));
       } catch (error) {
         responseData.push({
-          error: 'Failed to map relay to API response',
-          vaa: pick(relay, ['emitterAddress', 'emitterChain', 'sequence'])
+          error: "Failed to map relay to API response",
+          vaa: pick(relay, ["emitterAddress", "emitterChain", "sequence"]),
         });
       }
     }

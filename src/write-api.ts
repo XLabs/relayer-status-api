@@ -1,43 +1,53 @@
-import { Logger } from 'winston';
-import { RelayJob, RelayerEvents, RelayerApp, Context, Next, Environment } from '@wormhole-foundation/relayer-engine';
+import { Logger } from "winston";
+import { RelayJob, RelayerEvents, RelayerApp, Context, Next, Environment } from "@wormhole-foundation/relayer-engine";
 import { ParsedVaaWithBytes } from "@wormhole-foundation/relayer-engine/lib";
 
-import { withErrorHandling, tryTimes, pick } from './utils';
+import { withErrorHandling, tryTimes, pick } from "./utils";
 import { setupStorage, StorageConfiguration } from "./storage";
-import { DefaultRelayEntity, RelayStatus, EntityHandler, DefaultEntityHandler, MinimalRelayEntity } from './storage/model';
-import { getRelay } from './read-api';
+import {
+  DefaultRelayEntity,
+  RelayStatus,
+  EntityHandler,
+  DefaultEntityHandler,
+  MinimalRelayEntity,
+} from "./storage/model";
+import { getRelay } from "./read-api";
 
-async function updateRelay(entityHandler: EntityHandler<any>, relay: DefaultRelayEntity, updates: Partial<MinimalRelayEntity>) {
+async function updateRelay(
+  entityHandler: EntityHandler<any>,
+  relay: DefaultRelayEntity,
+  updates: Partial<MinimalRelayEntity>,
+) {
   const validUpdates = pick(updates, entityHandler.properties);
   if (!Object.keys(validUpdates).length) return;
-  await entityHandler.entity.update(pick(relay, ['_id']), validUpdates);
+  await entityHandler.entity.update(pick(relay, ["_id"]), validUpdates);
 }
 export interface RelayStorageContext extends Context {
   storedRelay?: RelayMiddlewareInterface;
 }
 
 /**
- * storeRelayerEngineRelays attaches to a relayer-engine (@xlabs-xyz/relayer-engine) application 
+ * storeRelayerEngineRelays attaches to a relayer-engine (@xlabs-xyz/relayer-engine) application
  * and takes care of persisting all VAAs that the relayer-engine creates a workflow for
- * 
+ *
  * It will also take care of updating the relay job properties as they become available. (eg: errorMessage
  * property when the relay is considered to have failed)
  * The properties this library automatically keeps up to date are declared on MinimalRelayEntity interface.
  * A class complying with the EntityHandler interface can be passed as parameter to customize the database
  * entity and how it's handled.
- * 
+ *
  * It also adds `storedRelay` to the context (ctx.storedRelay), which is an interface that allows to manually
  * update some relay information that is not directly accessible to the relayer engine
  * (eg target transaction data like toTxHash, feeAmount, gasUsed, ...)
  * It's also possible to use the `storedRelay` interface to store arbitrary metadata
  * using the `addMetadata` method.
- * 
+ *
  * All updates to a relay will be collected across all middleware and stored in the database in a single
  * operation after all middlewares have been executed.
- * 
+ *
  * By design this module aims not to interrupt the relayer-engine workflow and will not throw errors.
  * All database operation are automatically retryed with exponential back-off and errors are handled in case
- * of ultimately failing. 
+ * of ultimately failing.
  */
 export function storeRelayerEngineRelays<t extends Context>(
   app: RelayerApp<t>,
@@ -48,24 +58,27 @@ export function storeRelayerEngineRelays<t extends Context>(
   let storageReady = false;
   const { logger } = storageConfig;
 
-  const storagePromise = setupStorage(storageConfig).then((storage) => {
-    storageReady = true;
-    return storage;
-  }).catch((error) => {
-    storageError = error.message;
-    logger?.error(storageError);
-  });
+  const storagePromise = setupStorage(storageConfig)
+    .then(storage => {
+      storageReady = true;
+      return storage;
+    })
+    .catch(error => {
+      storageError = error.message;
+      logger?.error(storageError);
+    });
 
-  const doWhenStorageIsReady = (fn: (...args: any[]) => any) => async (...args: any[]) => {
-    if (storageError) throw new Error(storageError);
-    if (!storageReady) await storagePromise;
-    return fn(...args);
-  };
+  const doWhenStorageIsReady =
+    (fn: (...args: any[]) => any) =>
+    async (...args: any[]) => {
+      if (storageError) throw new Error(storageError);
+      if (!storageReady) await storagePromise;
+      return fn(...args);
+    };
 
   app.on(RelayerEvents.Added, (vaa: ParsedVaaWithBytes, job?: RelayJob) => {
     doWhenStorageIsReady(withErrorHandling(logger)(handleRelayAdded))(entityHandler, vaa, job, app.env, logger);
   });
-
 
   app.on(RelayerEvents.Completed, (vaa: ParsedVaaWithBytes, job?: RelayJob) => {
     doWhenStorageIsReady(withErrorHandling(logger)(handleRelayCompleted))(entityHandler, vaa, job, app.env, logger);
@@ -91,11 +104,11 @@ export function storeRelayerEngineRelays<t extends Context>(
       });
     }
   });
-};
+}
 
 class RelayMiddlewareInterface {
   private changes = {};
-  constructor(private relay: DefaultRelayEntity, private entityHandler: EntityHandler<any>) { }
+  constructor(private relay: DefaultRelayEntity, private entityHandler: EntityHandler<any>) {}
 
   private update(props: Record<string, any>) {
     if (Object.keys(props).length) {
@@ -136,7 +149,11 @@ const relayLogString = (vaa: ParsedVaaWithBytes) => {
 };
 
 const handleRelayAdded = async (
-  entityHandler: EntityHandler<any>, vaa: ParsedVaaWithBytes, env: Environment, job?: RelayJob, logger?: Logger
+  entityHandler: EntityHandler<any>,
+  vaa: ParsedVaaWithBytes,
+  env: Environment,
+  job?: RelayJob,
+  logger?: Logger,
 ) => {
   logger?.debug(`Creating record for relay: ${relayLogString(vaa)}`);
   let relay = await getRelay(entityHandler, vaa);
@@ -144,9 +161,7 @@ const handleRelayAdded = async (
   if (relay) {
     logger?.warn(`Vaa Relay was added twice: ${relayLogString(vaa)}`);
     relay.addedTimes = relay.addedTimes++;
-  }
-
-  else relay = await entityHandler.mapToStorageDocument(vaa, job, env, logger);
+  } else relay = await entityHandler.mapToStorageDocument(vaa, job, env, logger);
 
   await tryTimes(5, async () => {
     await relay.save();
@@ -156,9 +171,9 @@ const handleRelayAdded = async (
 
 /**
  * By design relayer-status-api aims to have its execution decoupled from the main relayer-engine process.
- * For this reason, the update of the main properties of the relay entity, such as status, are executed 
+ * For this reason, the update of the main properties of the relay entity, such as status, are executed
  * responding to the relayer-engine events (added, completed, failed).
- * 
+ *
  * In some scenarios, however, this might generate race conditions since the 'completed' event might be
  * triggered before the original 'added' event has finished storing the relay entity on the database.
  * For this reason, we try to get the relay entity from the database a few times before giving up.
@@ -169,14 +184,18 @@ async function getRelayPossiblyOnCreateState(entityHandler: EntityHandler<any>, 
 
   await tryTimes(5, async () => {
     relay = await getRelay(entityHandler, vaa);
-    if (!relay) throw new Error('Relay not found');
+    if (!relay) throw new Error("Relay not found");
   });
 
   return relay;
 }
 
 const handleRelayCompleted = async (
-  entityHandler: EntityHandler<any>, vaa: ParsedVaaWithBytes, env: Environment, job?: RelayJob, logger?: Logger
+  entityHandler: EntityHandler<any>,
+  vaa: ParsedVaaWithBytes,
+  env: Environment,
+  job?: RelayJob,
+  logger?: Logger,
 ) => {
   logger?.debug(`Completing relay: ${relayLogString(vaa)}`);
 
@@ -192,11 +211,15 @@ const handleRelayCompleted = async (
   await tryTimes(5, async () => {
     await updateRelay(entityHandler, relay, changes);
     logger?.debug(`Relay marked completed: ${relayLogString(vaa)}`);
-  })
+  });
 };
 
 const handleRelayFailed = async (
-  entityHandler: EntityHandler<any>, vaa: ParsedVaaWithBytes, env: Environment, job?: RelayJob, logger?: Logger
+  entityHandler: EntityHandler<any>,
+  vaa: ParsedVaaWithBytes,
+  env: Environment,
+  job?: RelayJob,
+  logger?: Logger,
 ) => {
   logger?.debug(`Failing relay: ${relayLogString(vaa)}`);
 
@@ -212,8 +235,7 @@ const handleRelayFailed = async (
   await tryTimes(5, async () => {
     await updateRelay(entityHandler, relay, changes);
     logger?.debug(`Relay marked failed: ${relayLogString(vaa)}`);
-  }).catch((error) => {
+  }).catch(error => {
     logger?.error(`Error marking relay failed: ${relayLogString(vaa)}: ${error}`);
   });
 };
-

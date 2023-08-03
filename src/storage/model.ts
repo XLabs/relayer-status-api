@@ -1,13 +1,6 @@
 import winston from "winston";
 
-import {
-  BaseEntity,
-  Column,
-  Index,
-  Entity,
-  ObjectId,
-  ObjectIdColumn,
-} from "typeorm";
+import { BaseEntity, Column, Index, Entity, ObjectId, ObjectIdColumn } from "typeorm";
 import { ChainId, SignedVaa } from "@certusone/wormhole-sdk";
 import { ParsedVaaWithBytes, Environment, RelayJob, fetchVaaHash } from "@wormhole-foundation/relayer-engine";
 
@@ -24,7 +17,7 @@ export type UserMetadata = Record<string, any>;
  * Entity handler is used as a class that centralizes mapping in and out of the database.
  * A class complying with this interface can be passed to the apis (write & read) to fully
  * customize the database entity and how it's handled.
- * 
+ *
  * it contains:
  *   - the entity model to be used (needs to comply with MinimalRelayEntity interface below)
  *   - a method to map a vaa to a storage document
@@ -40,32 +33,31 @@ export interface EntityHandler<T extends abstract new (...args: any[]) => any> {
 export class DefaultEntityHandler implements EntityHandler<typeof DefaultRelayEntity> {
   public entity = DefaultRelayEntity;
   public properties: string[] = [
-    'emitterChain',
-    'emitterAddress',
-    'sequence',
-    'vaa',
-    'fromTxHash',
-    'status',
-    'addedTimes',
-    'attempts',
-    'maxAttempts',
-    'receivedAt',
-    'completedAt',
-    'failedAt',
-    'errorMessage',
-    'toTxHash',
-    'metadata',
+    "emitterChain",
+    "emitterAddress",
+    "sequence",
+    "vaa",
+    "fromTxHash",
+    "status",
+    "addedTimes",
+    "attempts",
+    "maxAttempts",
+    "receivedAt",
+    "completedAt",
+    "failedAt",
+    "errorMessage",
+    "toTxHash",
+    "metadata",
   ];
-  public async mapToStorageDocument(vaa: ParsedVaaWithBytes, job: RelayJob, environment: Environment, logger?: winston.Logger): Promise<DefaultRelayEntity> {
-    // Question for the code reviewer: should we have our own implementation of fetchVaaHash? does it make sense to use 
+  public async mapToStorageDocument(
+    vaa: ParsedVaaWithBytes,
+    job: RelayJob,
+    environment: Environment,
+    logger?: winston.Logger,
+  ): Promise<DefaultRelayEntity> {
+    // Question for the code reviewer: should we have our own implementation of fetchVaaHash? does it make sense to use
     // the same implementation as the relayer-engine?
-    const txHash = await fetchVaaHash(
-      vaa.emitterChain,
-      vaa.emitterAddress,
-      vaa.sequence,
-      logger,
-      environment
-    );
+    const txHash = await fetchVaaHash(vaa.emitterChain, vaa.emitterAddress, vaa.sequence, logger, environment);
 
     const { emitterChain, emitterAddress, sequence } = vaa.id;
 
@@ -161,7 +153,6 @@ export class DefaultRelayEntity extends BaseEntity {
   @Index()
   fromTxHash: string;
 
-
   // Vaa Status Info:
   @Column()
   status: RelayStatus;
@@ -175,7 +166,6 @@ export class DefaultRelayEntity extends BaseEntity {
   @Column()
   maxAttempts: number;
 
-
   @Column()
   receivedAt: Date;
 
@@ -188,7 +178,6 @@ export class DefaultRelayEntity extends BaseEntity {
   @Column()
   errorMessage: string;
 
-
   /**
    * This data is not directly accessible to the relayer engine
    * and needs to be updated by the user of the relayer-status-api
@@ -198,5 +187,5 @@ export class DefaultRelayEntity extends BaseEntity {
   toTxHash: string;
 
   @Column()
-  metadata: UserMetadata
+  metadata: UserMetadata;
 }
