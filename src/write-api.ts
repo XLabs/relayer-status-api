@@ -1,5 +1,5 @@
 import { Logger } from 'winston';
-import { RelayJob, RelayerEvents, RelayerApp, Context, Next } from '@wormhole-foundation/relayer-engine';
+import { RelayJob, RelayerEvents, RelayerApp, Context, Next, Environment } from '@wormhole-foundation/relayer-engine';
 import { ParsedVaaWithBytes } from "@wormhole-foundation/relayer-engine/lib";
 
 import { withErrorHandling, tryTimes, pick } from './utils';
@@ -63,16 +63,16 @@ export function storeRelayerEngineRelays<t extends Context>(
   };
 
   app.on(RelayerEvents.Added, (vaa: ParsedVaaWithBytes, job?: RelayJob) => {
-    doWhenStorageIsReady(withErrorHandling(logger)(handleRelayAdded))(entityHandler, vaa, job, logger);
+    doWhenStorageIsReady(withErrorHandling(logger)(handleRelayAdded))(entityHandler, vaa, job, app.env, logger);
   });
 
 
   app.on(RelayerEvents.Completed, (vaa: ParsedVaaWithBytes, job?: RelayJob) => {
-    doWhenStorageIsReady(withErrorHandling(logger)(handleRelayCompleted))(entityHandler, vaa, job, logger);
+    doWhenStorageIsReady(withErrorHandling(logger)(handleRelayCompleted))(entityHandler, vaa, job, app.env, logger);
   });
 
   app.on(RelayerEvents.Failed, (vaa: ParsedVaaWithBytes, job?: RelayJob) => {
-    doWhenStorageIsReady(withErrorHandling(logger)(handleRelayFailed))(entityHandler, vaa, job, logger);
+    doWhenStorageIsReady(withErrorHandling(logger)(handleRelayFailed))(entityHandler, vaa, job, app.env, logger);
   });
 
   app.use(async (ctx: RelayStorageContext, next: Next) => {
@@ -136,7 +136,7 @@ const relayLogString = (vaa: ParsedVaaWithBytes) => {
 };
 
 const handleRelayAdded = async (
-  entityHandler: EntityHandler<any>, vaa: ParsedVaaWithBytes, job?: RelayJob, logger?: Logger
+  entityHandler: EntityHandler<any>, vaa: ParsedVaaWithBytes, env: Environment, job?: RelayJob, logger?: Logger
 ) => {
   logger?.debug(`Creating record for relay: ${relayLogString(vaa)}`);
   let relay = await getRelay(entityHandler, vaa);
@@ -146,7 +146,7 @@ const handleRelayAdded = async (
     relay.addedTimes = relay.addedTimes++;
   }
 
-  else relay = await entityHandler.mapToStorageDocument(vaa, job, logger);
+  else relay = await entityHandler.mapToStorageDocument(vaa, job, env, logger);
 
   await tryTimes(5, async () => {
     await relay.save();
@@ -176,7 +176,7 @@ async function getRelayPossiblyOnCreateState(entityHandler: EntityHandler<any>, 
 }
 
 const handleRelayCompleted = async (
-  entityHandler: EntityHandler<any>, vaa: ParsedVaaWithBytes, job?: RelayJob, logger?: Logger
+  entityHandler: EntityHandler<any>, vaa: ParsedVaaWithBytes, env: Environment, job?: RelayJob, logger?: Logger
 ) => {
   logger?.debug(`Completing relay: ${relayLogString(vaa)}`);
 
@@ -184,7 +184,7 @@ const handleRelayCompleted = async (
 
   if (!relay) {
     logger?.warn(`Completed Relay Not Found on DB: ${JSON.stringify(vaa.id)}. Recreating...`);
-    relay = await entityHandler.mapToStorageDocument(vaa, job, logger);
+    relay = await entityHandler.mapToStorageDocument(vaa, job, env, logger);
   }
 
   const changes = { completedAt: new Date(), status: RelayStatus.REDEEMED };
@@ -196,7 +196,7 @@ const handleRelayCompleted = async (
 };
 
 const handleRelayFailed = async (
-  entityHandler: EntityHandler<any>, vaa: ParsedVaaWithBytes, job?: RelayJob, logger?: Logger
+  entityHandler: EntityHandler<any>, vaa: ParsedVaaWithBytes, env: Environment, job?: RelayJob, logger?: Logger
 ) => {
   logger?.debug(`Failing relay: ${relayLogString(vaa)}`);
 
@@ -204,7 +204,7 @@ const handleRelayFailed = async (
 
   if (!relay) {
     logger?.warn(`Failed Relay Not Found on DB: ${relayLogString(vaa)}. Recreating...`);
-    relay = await entityHandler.mapToStorageDocument(vaa, job, logger);
+    relay = await entityHandler.mapToStorageDocument(vaa, job, env, logger);
   }
 
   const changes = { failedAt: new Date(), status: RelayStatus.FAILED };
