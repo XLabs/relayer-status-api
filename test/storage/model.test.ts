@@ -6,7 +6,7 @@ import {
     beforeEach,
   } from "@jest/globals";
 import { ParsedVaaWithBytes, Environment, RelayJob, fetchVaaHash } from "@wormhole-foundation/relayer-engine";
-import { DefaultEntityHandler } from "./model";
+import { DefaultEntityHandler } from "../../src/storage/model";
 
 jest.mock("@wormhole-foundation/relayer-engine");
 
