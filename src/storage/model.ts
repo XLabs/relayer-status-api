@@ -3,6 +3,9 @@ import winston from "winston";
 import { BaseEntity, Column, Index, Entity, ObjectId, ObjectIdColumn } from "typeorm";
 import { ChainId, SignedVaa } from "@certusone/wormhole-sdk";
 import { ParsedVaaWithBytes, Environment, RelayJob, fetchVaaHash } from "@wormhole-foundation/relayer-engine";
+import { pick } from "../utils";
+
+let silentLogger: winston.Logger;
 
 export enum RelayStatus {
   REDEEMED = "redeemed",
@@ -28,6 +31,7 @@ export interface EntityHandler<T extends abstract new (...args: any[]) => any> {
   properties: string[];
   mapToStorageDocument(vaa: ParsedVaaWithBytes, job: RelayJob, environment: Environment, logger?: winston.Logger): any;
   mapToApiResponse(entityObject: InstanceType<T>): any;
+  list(query: Partial<T>, limit: number): Promise<InstanceType<T>[]>
 }
 
 export class DefaultEntityHandler implements EntityHandler<typeof DefaultRelayEntity> {
@@ -49,15 +53,17 @@ export class DefaultEntityHandler implements EntityHandler<typeof DefaultRelayEn
     "toTxHash",
     "metadata",
   ];
-  public async mapToStorageDocument(
-    vaa: ParsedVaaWithBytes,
-    job: RelayJob,
-    environment: Environment,
-    logger?: winston.Logger,
-  ): Promise<DefaultRelayEntity> {
-    // Question for the code reviewer: should we have our own implementation of fetchVaaHash? does it make sense to use
+
+  public async mapToStorageDocument(vaa: ParsedVaaWithBytes, job: RelayJob, environment: Environment, logger?: winston.Logger): Promise<DefaultRelayEntity> {
+    // Question for the code reviewer: should we have our own implementation of fetchVaaHash? does it make sense to use 
     // the same implementation as the relayer-engine?
-    const txHash = await fetchVaaHash(vaa.emitterChain, vaa.emitterAddress, vaa.sequence, logger, environment);
+    const txHash = await fetchVaaHash(
+      vaa.emitterChain,
+      vaa.emitterAddress,
+      vaa.sequence,
+      logger ? logger : silentLogger ??= winston.createLogger({ silent: true }),
+      environment
+    );
 
     const { emitterChain, emitterAddress, sequence } = vaa.id;
 
@@ -84,6 +90,15 @@ export class DefaultEntityHandler implements EntityHandler<typeof DefaultRelayEn
   public async mapToApiResponse(entityObject: InstanceType<typeof DefaultRelayEntity>) {
     return entityObject;
   }
+
+  list(query: Partial<typeof DefaultRelayEntity>, limit: number): Promise<DefaultRelayEntity[]> {
+    return this.entity.find({ 
+      where: pick(query, this.properties), 
+      take: limit, 
+      order: { "emitterChain": "ASC", "emitterAddress": "ASC", "sequence": "DESC" } 
+    });
+  }
+
 }
 
 /**

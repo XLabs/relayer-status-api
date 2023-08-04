@@ -5,7 +5,8 @@ import { ParsedVaaWithBytes } from "@wormhole-foundation/relayer-engine";
 
 import { setupStorage, StorageConfiguration } from "./storage";
 import { EntityHandler, DefaultEntityHandler } from "./storage/model";
-import { pick } from "./utils";
+import { pick } from './utils';
+import { ApiConfiguration } from "./config";
 
 const supportedQueryStringParams = [
   "fromTxHash",
@@ -44,12 +45,6 @@ function logRequestMetricsMiddleware(logger: winston.Logger) {
   };
 }
 
-export type ApiConfiguration = {
-  app?: Koa;
-  port?: number;
-  prefix?: string;
-  logger?: winston.Logger;
-};
 
 export async function startRelayDataApi(
   storageConfig: StorageConfiguration,
@@ -77,7 +72,7 @@ export async function startRelayDataApi(
       return;
     }
 
-    const relays = await entityHandler.entity.find({ where: query });
+    const relays = await entityHandler.list(query, apiConfig.read?.queryLimit ?? 15);
 
     if (!relays.length) {
       ctx.status = 404;
