@@ -19,18 +19,9 @@ jobs:
             ./package-lock.json
       - name: npm ci
         run: npm ci
+      - name: format check
+        run: npm run prettier-check
       - name: typecheck
         run: npm run build
-      - name: Run tests
+      - name: test
         run: npm test
-  prettier:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Prettify code
-        uses: creyD/prettier_action@master
-        with:
-          dry: True
-          prettier_options: --write .

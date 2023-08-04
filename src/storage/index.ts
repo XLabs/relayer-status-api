@@ -44,7 +44,7 @@ export async function setupStorage(config: StorageConfiguration): Promise<typeof
     connectionUrl,
     databaseName,
     datasourceOptions = {},
-    abortOnConnectionError = true,
+    abortOnConnectionError = true
   } = config;
 
   logger?.debug("Initializing storage connection");
@@ -56,7 +56,7 @@ export async function setupStorage(config: StorageConfiguration): Promise<typeof
     url: connectionUrl,
     database: databaseName,
     entities: [DefaultRelayEntity],
-    synchronize: true,
+    synchronize: true
   };
 
   const RelaysDS = new DataSource(opts as DataSourceOptions);

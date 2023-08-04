@@ -11,7 +11,7 @@ export enum RelayStatus {
   REDEEMED = "redeemed",
   FAILED = "failed",
   WAITING = "waiting",
-  ACTIVE = "inprogress",
+  ACTIVE = "inprogress"
 }
 
 export type UserMetadata = Record<string, any>;
@@ -31,7 +31,7 @@ export interface EntityHandler<T extends abstract new (...args: any[]) => any> {
   properties: string[];
   mapToStorageDocument(vaa: ParsedVaaWithBytes, job: RelayJob, environment: Environment, logger?: winston.Logger): any;
   mapToApiResponse(entityObject: InstanceType<T>): any;
-  list(query: Partial<T>, limit: number): Promise<InstanceType<T>[]>
+  list(query: Partial<T>, limit: number): Promise<InstanceType<T>[]>;
 }
 
 export class DefaultEntityHandler implements EntityHandler<typeof DefaultRelayEntity> {
@@ -51,17 +51,22 @@ export class DefaultEntityHandler implements EntityHandler<typeof DefaultRelayEn
     "failedAt",
     "errorMessage",
     "toTxHash",
-    "metadata",
+    "metadata"
   ];
 
-  public async mapToStorageDocument(vaa: ParsedVaaWithBytes, job: RelayJob, environment: Environment, logger?: winston.Logger): Promise<DefaultRelayEntity> {
-    // Question for the code reviewer: should we have our own implementation of fetchVaaHash? does it make sense to use 
+  public async mapToStorageDocument(
+    vaa: ParsedVaaWithBytes,
+    job: RelayJob,
+    environment: Environment,
+    logger?: winston.Logger
+  ): Promise<DefaultRelayEntity> {
+    // Question for the code reviewer: should we have our own implementation of fetchVaaHash? does it make sense to use
     // the same implementation as the relayer-engine?
     const txHash = await fetchVaaHash(
       vaa.emitterChain,
       vaa.emitterAddress,
       vaa.sequence,
-      logger ? logger : silentLogger ??= winston.createLogger({ silent: true }),
+      logger ? logger : (silentLogger ??= winston.createLogger({ silent: true })),
       environment
     );
 
@@ -77,7 +82,7 @@ export class DefaultEntityHandler implements EntityHandler<typeof DefaultRelayEn
       fromTxHash: txHash,
       attempts: 0,
       addedTimes: 1,
-      maxAttempts: job?.maxAttempts,
+      maxAttempts: job?.maxAttempts
     });
 
     return relay;
@@ -92,13 +97,12 @@ export class DefaultEntityHandler implements EntityHandler<typeof DefaultRelayEn
   }
 
   list(query: Partial<typeof DefaultRelayEntity>, limit: number): Promise<DefaultRelayEntity[]> {
-    return this.entity.find({ 
-      where: pick(query, this.properties), 
-      take: limit, 
-      order: { "emitterChain": "ASC", "emitterAddress": "ASC", "sequence": "DESC" } 
+    return this.entity.find({
+      where: pick(query, this.properties),
+      take: limit,
+      order: { emitterChain: "ASC", emitterAddress: "ASC", sequence: "DESC" }
     });
   }
-
 }
 
 /**

@@ -1,6 +1,6 @@
 {
   "tabWidth": 2,
-  "trailingComma": "all",
+  "trailingComma": "none",
   "arrowParens": "avoid",
   "printWidth": 120
 }

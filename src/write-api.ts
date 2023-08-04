@@ -9,14 +9,14 @@ import {
   RelayStatus,
   EntityHandler,
   DefaultEntityHandler,
-  MinimalRelayEntity,
+  MinimalRelayEntity
 } from "./storage/model";
 import { getRelay } from "./read-api";
 
 async function updateRelay(
   entityHandler: EntityHandler<any>,
   relay: DefaultRelayEntity,
-  updates: Partial<MinimalRelayEntity>,
+  updates: Partial<MinimalRelayEntity>
 ) {
   const validUpdates = pick(updates, entityHandler.properties);
   if (!Object.keys(validUpdates).length) return;
@@ -52,7 +52,7 @@ export interface RelayStorageContext extends Context {
 export function storeRelayerEngineRelays<t extends Context>(
   app: RelayerApp<t>,
   storageConfig: StorageConfiguration,
-  entityHandler: EntityHandler<any> = new DefaultEntityHandler(),
+  entityHandler: EntityHandler<any> = new DefaultEntityHandler()
 ) {
   let storageError: string;
   let storageReady = false;
@@ -153,7 +153,7 @@ const handleRelayAdded = async (
   vaa: ParsedVaaWithBytes,
   env: Environment,
   job?: RelayJob,
-  logger?: Logger,
+  logger?: Logger
 ) => {
   logger?.debug(`Creating record for relay: ${relayLogString(vaa)}`);
   let relay = await getRelay(entityHandler, vaa);
@@ -195,7 +195,7 @@ const handleRelayCompleted = async (
   vaa: ParsedVaaWithBytes,
   env: Environment,
   job?: RelayJob,
-  logger?: Logger,
+  logger?: Logger
 ) => {
   logger?.debug(`Completing relay: ${relayLogString(vaa)}`);
 
@@ -219,7 +219,7 @@ const handleRelayFailed = async (
   vaa: ParsedVaaWithBytes,
   env: Environment,
   job?: RelayJob,
-  logger?: Logger,
+  logger?: Logger
 ) => {
   logger?.debug(`Failing relay: ${relayLogString(vaa)}`);
 

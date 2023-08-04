@@ -17,7 +17,7 @@ import { logger } from "./logger";
     connectionUrl: "mongodb://localhost:27017",
     databaseName: "wormhole-relay",
     logger: logger.child({ label: "storage" }),
-    abortOnConnectionError: true,
+    abortOnConnectionError: true
     // datasourceOptions: {},
   };
 

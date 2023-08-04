@@ -5,7 +5,7 @@ import { ParsedVaaWithBytes } from "@wormhole-foundation/relayer-engine";
 
 import { setupStorage, StorageConfiguration } from "./storage";
 import { EntityHandler, DefaultEntityHandler } from "./storage/model";
-import { pick } from './utils';
+import { pick } from "./utils";
 import { ApiConfiguration } from "./config";
 
 const supportedQueryStringParams = [
@@ -16,7 +16,7 @@ const supportedQueryStringParams = [
   "status",
   "toTxHash",
   "fromChain",
-  "toChain",
+  "toChain"
 ];
 
 export function getRelay(entityHandler: EntityHandler<any>, vaa: ParsedVaaWithBytes) {
@@ -26,7 +26,7 @@ export function getRelay(entityHandler: EntityHandler<any>, vaa: ParsedVaaWithBy
   }
 
   return entityHandler.entity.findOne({
-    where: { emitterChain, emitterAddress, sequence },
+    where: { emitterChain, emitterAddress, sequence }
   });
 }
 
@@ -40,16 +40,15 @@ function logRequestMetricsMiddleware(logger: winston.Logger) {
       method: ctx.method,
       url: ctx.url,
       duration,
-      status: ctx.status,
+      status: ctx.status
     });
   };
 }
 
-
 export async function startRelayDataApi(
   storageConfig: StorageConfiguration,
   apiConfig: ApiConfiguration,
-  entityHandler: EntityHandler<any> = new DefaultEntityHandler(),
+  entityHandler: EntityHandler<any> = new DefaultEntityHandler()
 ) {
   await setupStorage(storageConfig);
 
@@ -67,7 +66,7 @@ export async function startRelayDataApi(
     if (!Object.keys(query).length) {
       ctx.status = 400;
       ctx.body = {
-        error: `No params found on query-string. Supported search params: ${supportedQueryStringParams.join(", ")}`,
+        error: `No params found on query-string. Supported search params: ${supportedQueryStringParams.join(", ")}`
       };
       return;
     }
@@ -77,7 +76,7 @@ export async function startRelayDataApi(
     if (!relays.length) {
       ctx.status = 404;
       ctx.body = {
-        error: "Not Found.",
+        error: "Not Found."
       };
     }
 
@@ -89,7 +88,7 @@ export async function startRelayDataApi(
       } catch (error) {
         responseData.push({
           error: "Failed to map relay to API response",
-          vaa: pick(relay, ["emitterAddress", "emitterChain", "sequence"]),
+          vaa: pick(relay, ["emitterAddress", "emitterChain", "sequence"])
         });
       }
     }
