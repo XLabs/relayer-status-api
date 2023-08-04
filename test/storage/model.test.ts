@@ -27,7 +27,7 @@ describe("DefaultEntityHandler", () => {
             const expectedEnvironment = Environment.MAINNET;
             await entityHandler.mapToStorageDocument(aVaa, aRelayJob, expectedEnvironment);
             
-            expect(fetchVaaHash).toBeCalledWith(aVaa.emitterChain, aVaa.emitterAddress, aVaa.sequence, undefined, expectedEnvironment);
+            expect(fetchVaaHash).toBeCalledWith(aVaa.emitterChain, aVaa.emitterAddress, aVaa.sequence, expect.anything(), expectedEnvironment);
         });
 
     });
