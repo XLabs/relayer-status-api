@@ -22,6 +22,11 @@ export type StorageConfiguration = {
 //   database = "relays",
 // }: any
 
+export type RelayStorage = {
+  onClose: () => Promise<void>;
+  entity: typeof DefaultRelayEntity;
+};
+
 /**
  * Storage is a high level abstraction over any persistent storage solution.
  * We use typeorm to abstract away the underlying database.
@@ -37,7 +42,7 @@ export type StorageConfiguration = {
  * Because storage is closely tied to the read and write api, this method won't be exported from the package to force the user
  * use read-api and write-api methods, which will facilitate ensuring that the storage and the api (read or write) are using the same entity.
  */
-export async function setupStorage(config: StorageConfiguration): Promise<typeof DefaultRelayEntity> {
+export async function setupStorage(config: StorageConfiguration): Promise<RelayStorage> {
   const {
     logger,
     storageType,
@@ -74,5 +79,8 @@ export async function setupStorage(config: StorageConfiguration): Promise<typeof
 
   logger?.info("Storage connection initialized");
 
-  return DefaultRelayEntity;
+  return {
+    entity: DefaultRelayEntity,
+    onClose: () => RelaysDS.destroy()
+  };
 }

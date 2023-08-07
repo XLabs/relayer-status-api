@@ -3,7 +3,7 @@ import Koa from "koa";
 import request from "supertest";
 import { GenericContainer, StartedTestContainer, Wait } from "testcontainers";
 import { ParsedVaaWithBytes, Environment, RelayJob } from "@wormhole-foundation/relayer-engine";
-import { startRelayDataApi, StorageConfiguration, ApiConfiguration } from "../src";
+import { startRelayDataApi, StorageConfiguration, ApiConfiguration, RelayDataApi } from "../src";
 import { DefaultEntityHandler, DefaultRelayEntity, EntityHandler } from "../src/storage/model";
 import { Server } from "http";
 
@@ -20,6 +20,7 @@ const apiConfig: ApiConfiguration = {
   prefix: ""
 };
 let server: Server | undefined;
+let dataApi: RelayDataApi;
 
 describe("read-api", () => {
   beforeAll(async () => {
@@ -32,13 +33,13 @@ describe("read-api", () => {
       abortOnConnectionError: true
     };
 
-    await startRelayDataApi(storageConfig, apiConfig, entityHandler);
+    dataApi = await startRelayDataApi(storageConfig, apiConfig, entityHandler);
     server = apiConfig.app?.listen(0);
   }, ONE_MINUTE);
 
   afterAll(async () => {
     await startedMongo.stop();
-
+    await dataApi.onClose();
     server?.close();
   });
 

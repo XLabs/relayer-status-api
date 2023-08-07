@@ -45,12 +45,17 @@ function logRequestMetricsMiddleware(logger: winston.Logger) {
   };
 }
 
+export type RelayDataApi = {
+  app: Koa;
+  onClose: () => Promise<void>;
+};
+
 export async function startRelayDataApi(
   storageConfig: StorageConfiguration,
   apiConfig: ApiConfiguration,
   entityHandler: EntityHandler<any> = new DefaultEntityHandler()
-) {
-  await setupStorage(storageConfig);
+): Promise<RelayDataApi> {
+  const relayStorage = await setupStorage(storageConfig);
 
   const { logger, port = 4200, app = new Koa(), prefix = "/relay-status-api" } = apiConfig;
 
@@ -105,5 +110,5 @@ export async function startRelayDataApi(
     });
   }
 
-  return app;
+  return { app, onClose: relayStorage.onClose };
 }

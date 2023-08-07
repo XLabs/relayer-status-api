@@ -1,11 +1,11 @@
 {
   "name": "@xlabs-xyz/relayer-status-api",
-  "version": "0.0.16",
+  "version": "0.0.17",
   "description": "",
   "main": "./lib/index.js",
   "scripts": {
-    "test": "jest --silent=false --forceExit",
-    "test-integration": "jest int --silent=false --forceExit",
+    "test": "jest --silent=false",
+    "test-integration": "jest int --silent=false",
     "test-watch": "jest --silent=false --watch",
     "build": "tsc",
     "prettier": "prettier --write .",
