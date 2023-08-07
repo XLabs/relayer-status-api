@@ -15,7 +15,7 @@ export const withErrorHandling =
   };
 
 export function exponentialBackOff(attempt: number) {
-  let backoffTime = attempt === 0 ? 0 : 500 * Math.pow(2, attempt);
+  const backoffTime = attempt === 0 ? 0 : 500 * Math.pow(2, attempt);
   return new Promise(resolve => setTimeout(resolve, backoffTime));
 }
 

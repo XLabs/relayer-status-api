@@ -2,7 +2,7 @@ import Koa from "koa";
 import winston from "winston";
 
 export class ReadApiConfiguration {
-  queryLimit: number = 15;
+  queryLimit = 15;
 }
 
 export type ApiConfiguration = {

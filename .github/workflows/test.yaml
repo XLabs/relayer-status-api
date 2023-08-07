@@ -20,7 +20,7 @@ jobs:
       - name: npm ci
         run: npm ci
       - name: format check
-        run: npm run prettier-check
+        run: npm run prettier-check && npm run lint
       - name: typecheck
         run: npm run build
       - name: test

@@ -1,7 +1,7 @@
 import { describe, test, expect } from "@jest/globals";
 import Koa from "koa";
 import request from "supertest";
-import { GenericContainer, StartedTestContainer, Wait } from "testcontainers";
+import { GenericContainer, StartedTestContainer } from "testcontainers";
 import { ParsedVaaWithBytes, Environment, RelayJob } from "@wormhole-foundation/relayer-engine";
 import { startRelayDataApi, StorageConfiguration, ApiConfiguration, RelayDataApi } from "../src";
 import { DefaultEntityHandler, DefaultRelayEntity, EntityHandler } from "../src/storage/model";

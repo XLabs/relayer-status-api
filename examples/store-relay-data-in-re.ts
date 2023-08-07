@@ -1,6 +1,5 @@
-import { createLogger, transports, format } from "winston";
 import { CHAIN_ID_SOLANA } from "@certusone/wormhole-sdk";
-import { RelayerApp, RelayerAppOpts, Environment, Next } from "@wormhole-foundation/relayer-engine";
+import { RelayerApp, Environment, Next } from "@wormhole-foundation/relayer-engine";
 
 import { storeRelayerEngineRelays, StorageConfiguration, RelayStorageContext } from "relay-status-api";
 
