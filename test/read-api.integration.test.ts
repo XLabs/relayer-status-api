@@ -1,50 +1,18 @@
-import { describe, test, expect,} from "@jest/globals";
-import Koa from "koa";
+import { describe, test, expect, } from "@jest/globals";
 import request from "supertest";
-import { GenericContainer, StartedTestContainer, Wait } from "testcontainers";
-import { ParsedVaaWithBytes, Environment, RelayJob } from "@wormhole-foundation/relayer-engine";
-import { startRelayDataApi, StorageConfiguration, ApiConfiguration } from "../src";
+import { Environment } from "@wormhole-foundation/relayer-engine";
+import { ApiConfiguration } from "../src";
 import { DefaultEntityHandler, DefaultRelayEntity, EntityHandler } from "../src/storage/model";
-import { Server } from "http";
+import { createRelayJob, createVaa } from "./shared/entity-factory";
+import { integrationTestRunner } from "./shared/integration-test";
 
-const ONE_MINUTE = 60_000;
 const TEN_SECS = 10_000;
-const MONGODB_PORT = 27017;
 const ENV = Environment.DEVNET;
 
-const mongodbContainer: GenericContainer = new GenericContainer("mongo:6.0.1");
-let startedMongo: StartedTestContainer;
 const entityHandler: EntityHandler<any> = new DefaultEntityHandler();
-const apiConfig: ApiConfiguration = {
-    app: new Koa(),
-    prefix: ''
-};
-let server: Server | undefined;
 
-describe("read-api", () => {
-
-    beforeAll(async () => {
-        startedMongo = await mongodbContainer.withExposedPorts(MONGODB_PORT).start();
-
-        const storageConfig: StorageConfiguration = {
-            storageType: 'mongodb',
-            connectionUrl: `mongodb://${startedMongo.getHost()}:${startedMongo.getMappedPort(MONGODB_PORT)}`,
-            databaseName: 'wormhole-relay-test',
-            abortOnConnectionError: true
-        };
-
-        await startRelayDataApi(storageConfig, apiConfig, entityHandler);
-        server = apiConfig.app?.listen(0);
-    }, ONE_MINUTE);
-
-    afterAll(async () => {
-        await startedMongo.stop();
-
-        server?.close();
-    });
-
-    describe("list", () => {
-
+integrationTestRunner(async (apiConfig: ApiConfiguration) => {
+    describe("read-api", () => {
         test("should get last N items", async () => {
             const expectedSize = 3;
             const emitterChain = 1;
@@ -58,20 +26,15 @@ describe("read-api", () => {
 
             expect(response.status).toBe(200);
             expect(response.body).toHaveLength(expectedSize);
-            expect(response.body[0].sequence).toBeGreaterThan(response.body[1].sequence);
+            expect(Number(response.body[0].sequence)).toBeGreaterThan(Number(response.body[1].sequence));
         }, TEN_SECS);
     });
 });
 
 const givenPresentRelays = async (entityHandler: EntityHandler<any>, emitterChain: number, count: number) => {
     for (let index = 0; index < count; index++) {
-        await entityHandler.mapToStorageDocument(createVa(emitterChain, index + 1), createRelayJob(), ENV).then((entity: DefaultRelayEntity) => entity.save());
+        await entityHandler.mapToStorageDocument(createVaa(emitterChain, BigInt(index + 1)), createRelayJob(), ENV).then((entity: DefaultRelayEntity) => entity.save());
     }
 };
 
 const givenMaxListApiSize = (apiConfig: ApiConfiguration, queryLimit: number) => apiConfig.read = { queryLimit };
-
-const createVa = (emitterChain?: number, sequence?: number) => ({ id: { emitterChain: emitterChain || 1, emitterAddress: Buffer.from([1]), sequence: sequence || 1n } } as unknown as ParsedVaaWithBytes);
-
-const createRelayJob = () => ({ id: "jobId" } as unknown as RelayJob);
-
