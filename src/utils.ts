@@ -1,7 +1,7 @@
 import { Logger } from 'winston';
 
 
-export const withErrorHandling = (logger?: Logger) => (fn: (...args: any[]) => any) => async (...args: any[]) => {
+export const withErrorHandling = <Args extends Array<T>, Res, T>(logger: Logger, fn: (...args: Args) => Res) => async (...args: Args) => {
   let result;
   try {
     result = await fn(...args);
