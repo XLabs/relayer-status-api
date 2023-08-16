@@ -39,8 +39,8 @@ export interface RelayStorageContext extends Context {
  * All database operation are automatically retryed with exponential back-off and errors are handled in case
  * of ultimately failing. 
  */
-export function storeRelayerEngineRelays<t extends Context>(
-  app: RelayerApp<t>,
+export function storeRelayerEngineRelays<T extends Context>(
+  app: RelayerApp<T>,
   storageConfig: StorageConfiguration,
   entityHandler: EntityHandler<any> = new DefaultEntityHandler(),
 ) {
@@ -56,23 +56,23 @@ export function storeRelayerEngineRelays<t extends Context>(
     logger?.error(storageError);
   });
 
-  const doWhenStorageIsReady = (fn: (...args: any[]) => any) => async (...args: any[]) => {
+  const doWhenStorageIsReady = <Args extends Array<T2>, Res, T2> (fn: (...args: Args) => Res) => async (...args: Args) => {
     if (storageError) throw new Error(storageError);
     if (!storageReady) await storagePromise;
     return fn(...args);
   };
 
   app.on(RelayerEvents.Added, (vaa: ParsedVaaWithBytes, job?: RelayJob) => {
-    doWhenStorageIsReady(withErrorHandling(logger)(handleRelayAdded))(entityHandler, vaa, app.env, job, logger);
+    doWhenStorageIsReady(withErrorHandling(logger, handleRelayAdded))(entityHandler, vaa, app.env, job, logger);
   });
 
 
   app.on(RelayerEvents.Completed, (vaa: ParsedVaaWithBytes, job?: RelayJob) => {
-    doWhenStorageIsReady(withErrorHandling(logger)(handleRelayCompleted))(entityHandler, vaa, app.env, job, logger);
+    doWhenStorageIsReady(withErrorHandling(logger, handleRelayCompleted))(entityHandler, vaa, app.env, job, logger);
   });
 
   app.on(RelayerEvents.Failed, (vaa: ParsedVaaWithBytes, job?: RelayJob) => {
-    doWhenStorageIsReady(withErrorHandling(logger)(handleRelayFailed))(entityHandler, vaa, app.env, job, logger);
+    doWhenStorageIsReady(withErrorHandling(logger, handleRelayFailed))(entityHandler, vaa, app.env, job, logger);
   });
 
   app.use(async (ctx: RelayStorageContext, next: Next) => {
@@ -86,7 +86,7 @@ export function storeRelayerEngineRelays<t extends Context>(
     await next();
 
     if (ctx.storedRelay?.touched()) {
-      await withErrorHandling(logger)(tryTimes)(5, async () => {
+      await withErrorHandling(logger, tryTimes)(5, async () => {
         await ctx.storedRelay.applyChanges();
       });
     }
