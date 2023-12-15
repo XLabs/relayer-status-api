@@ -9,7 +9,7 @@ import {
   ObjectIdColumn,
 } from "typeorm";
 import { ChainId, SignedVaa } from "@certusone/wormhole-sdk";
-import { ParsedVaaWithBytes, Environment, RelayJob, fetchVaaHash } from "@wormhole-foundation/relayer-engine";
+import { ParsedVaaWithBytes, Environment, RelayJob, fetchVaaHash } from "@xlabs/relayer-engine";
 import { pick } from "../utils";
 
 let silentLogger: winston.Logger;
@@ -68,8 +68,8 @@ export class DefaultEntityHandler implements EntityHandler<typeof DefaultRelayEn
       vaa.emitterChain,
       vaa.emitterAddress,
       vaa.sequence,
+      environment,
       logger ? logger : silentLogger ??= winston.createLogger({ silent: true }),
-      environment
     );
 
     const { emitterChain, emitterAddress, sequence } = vaa.id;

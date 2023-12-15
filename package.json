@@ -1,6 +1,6 @@
 {
   "name": "@xlabs-xyz/relayer-status-api",
-  "version": "0.0.26",
+  "version": "0.0.31",
   "description": "",
   "main": "./lib/index.js",
   "scripts": {
@@ -17,7 +17,7 @@
     "reflect-metadata": "^0.1.13",
     "typeorm": "^0.3.16",
     "winston": "^3.8.2",
-    "@certusone/wormhole-sdk": "0.9.24-beta.0"
+    "@certusone/wormhole-sdk": "^0.10.6"
   },
   "devDependencies": {
     "@types/jest": "^29.5.1",
@@ -33,6 +33,6 @@
     "typescript": "^5.0.4"
   },
   "peerDependencies": {
-    "@wormhole-foundation/relayer-engine": ">=0.2.1"
+    "@xlabs/relayer-engine": ">=0.3.5"
   }
 }

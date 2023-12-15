@@ -1,6 +1,6 @@
 import { Logger } from 'winston';
-import { RelayJob, RelayerEvents, RelayerApp, Context, Next, Environment } from '@wormhole-foundation/relayer-engine';
-import { ParsedVaaWithBytes } from "@wormhole-foundation/relayer-engine/lib";
+import { RelayJob, RelayerEvents, RelayerApp, Context, Next, Environment } from '@xlabs/relayer-engine';
+import { ParsedVaaWithBytes } from "@xlabs/relayer-engine";
 
 import { withErrorHandling, tryTimes, pick } from './utils';
 import { setupStorage, StorageConfiguration } from "./storage";
@@ -76,7 +76,18 @@ export function storeRelayerEngineRelays<T extends Context>(
   });
 
   app.use(async (ctx: RelayStorageContext, next: Next) => {
-    const relay = await getRelayPossiblyOnCreateState(entityHandler, ctx.vaa);
+    let relay;
+
+    // we actually have a reference to the job on `ctx.storage.job` but we need to have a circular
+    // dependency with the relayer engine in order to get and use the StorageContext.
+    // At the moment the job here is used only to set the `maxAttempts` property on the status api,
+    // which isn't that useful, so I'll use an empty job instead of adding the circular dependency.
+    const job = {} as RelayJob;
+    try {
+      relay = await getRelayPossiblyOnCreateState(entityHandler, ctx.vaa);
+    } catch (error) {
+      relay = await entityHandler.mapToStorageDocument(ctx.vaa, job, app.env, ctx.logger);
+    }
 
     if (relay) {
       ctx.storedRelay = new RelayMiddlewareInterface(relay, entityHandler);

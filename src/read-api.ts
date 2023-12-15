@@ -1,7 +1,7 @@
 import Koa from "koa";
 import Router from "koa-router";
 import winston from "winston";
-import { ParsedVaaWithBytes } from "@wormhole-foundation/relayer-engine";
+import { ParsedVaaWithBytes } from "@xlabs/relayer-engine";
 
 import { setupStorage, StorageConfiguration } from "./storage";
 import { EntityHandler, DefaultEntityHandler } from "./storage/model";
